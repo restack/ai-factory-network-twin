@@ -1,0 +1,10 @@
+name: mini-dual-plane
+required_planes: [a, b]
+supported_network_platforms: [frr]
+required_tag: ai-fabric
+fabric_p2p_prefix_length: 31
+host_p2p_prefix_length: 31
+spine_count_by_plane: {a: 2, b: 2}
+plane_address_pools:
+  a: [10.0.0.0/16, 10.255.0.0/24]
+  b: [10.1.0.0/16, 10.255.1.0/24]

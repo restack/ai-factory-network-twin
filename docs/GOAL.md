@@ -31,14 +31,13 @@ Create and pursue a persistent goal with this objective:
 
 Verify this baseline rather than assuming it remains unchanged:
 
-- M0 repository scaffolding is complete.
-- The M1 foundation includes a pinned local NetBox environment, v2 development
-  token, versioned `smoke` fixture, typed fixture schema, idempotent seeder,
-  read-only adapter, raw snapshot support, normalized domain models, and live
-  NetBox integration tests.
-- The next expected slice is the remaining M1 work: expand the fixture and
-  contract coverage to `mini-dual-plane`, then satisfy every M1 acceptance
-  criterion before starting M2.
+- M0 repository scaffolding, M1 NetBox fixtures/adapter, and the M2 static
+  policy engine are complete.
+- The repository includes pinned local NetBox, versioned `smoke` and
+  `mini-dual-plane` fixtures, idempotent seeding, deterministic snapshots,
+  normalized domain/graph models, explicit policy profiles, stable rule IDs,
+  human/JSON reports, and live NetBox integration tests.
+- The next expected slice is M3 deterministic compilation and golden artifacts.
 
 ### Execution Loop
 

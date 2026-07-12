@@ -12,13 +12,19 @@ from yaml import YAMLError
 from aftwin import __version__
 from aftwin.errors import (
     AftwinError,
+    ExitCode,
     FixtureError,
     NetBoxOperationError,
     NotImplementedCommandError,
+    PolicyProfileError,
+    SourceValidationError,
 )
+from aftwin.netbox.adapter import NetBoxAdapter
 from aftwin.netbox.client import NetBoxClient
 from aftwin.netbox.fixture import load_fixture
 from aftwin.netbox.seeder import NetBoxSeeder
+from aftwin.policy.engine import PolicyEngine
+from aftwin.policy.profile import load_policy_profile
 from aftwin.settings import Settings
 
 OutputFormat = Literal["human", "json"]
@@ -62,10 +68,36 @@ def seed(
 
 
 @app.command
-def validate(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
-    """Validate NetBox source data (planned for M2)."""
-    del site, output
-    _pending("validate", "M2")
+def validate(
+    site: str = "aif-lab",
+    *,
+    profile: Path = Path("config/policies/mini-dual-plane.yaml"),
+    output: OutputFormat = "human",
+) -> None:
+    """Fetch, normalize, and statically validate NetBox source data."""
+    settings = Settings()
+    if settings.netbox_token is None:
+        raise NetBoxOperationError("authenticate", "NETBOX_TOKEN is not configured")
+    try:
+        policy_profile = load_policy_profile(profile)
+    except (OSError, ValidationError, YAMLError) as error:
+        raise PolicyProfileError(str(profile), str(error)) from error
+
+    adapter = NetBoxAdapter(NetBoxClient(settings.netbox_url, settings.netbox_token))
+    snapshot = adapter.fetch_site(site)
+    adapter.save_snapshot(snapshot, settings.build_dir / site / "source" / "netbox.json")
+    try:
+        fabric = adapter.normalize(snapshot)
+    except NetBoxOperationError as error:
+        raise SourceValidationError(error.message) from error
+    report = PolicyEngine().validate(fabric, policy_profile)
+    report_path = settings.build_dir / site / "reports" / "static-validation.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(report.to_json(), encoding="utf-8", newline="\n")
+    rendered = report.to_json() if output == "json" else report.render_human()
+    print(rendered, end="")
+    if report.failed:
+        raise SystemExit(ExitCode.SOURCE_VALIDATION)
 
 
 @app.command
