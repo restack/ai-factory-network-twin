@@ -1,6 +1,6 @@
 # AI Factory Network Twin — Planning
 
-- **Status:** Draft v0.3
+- **Status:** MVP v1.0 complete
 - **Working repository name:** `ai-factory-network-twin`
 - **CLI name:** `aftwin`
 - **Owner:** Aaron Yoon
@@ -10,12 +10,12 @@
 ### Implementation Status
 
 - **M0:** Complete and merged
-- **M1:** Complete
-- **M2:** Complete
+- **M1:** Complete and merged
+- **M2:** Complete and merged
 - **M3:** Complete and merged
 - **M4:** Complete and merged
-- **M5:** Complete locally; clean-room demo passed, pending PR merge
-- **Next:** Final MVP Definition of Done audit
+- **M5:** Complete and merged
+- **Next:** Post-MVP work requires an explicit backlog decision
 
 ## 1. Decision Summary
 
