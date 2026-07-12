@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from aftwin.cli import main
@@ -40,3 +42,27 @@ def test_validate_requires_netbox_token(
 
     assert raised.value.code == ExitCode.CONFIGURATION
     assert "NETBOX_TOKEN is not configured" in capsys.readouterr().err
+
+
+def test_deploy_missing_build_uses_deployment_exit_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("AFTWIN_BUILD_DIR", str(tmp_path))
+
+    with pytest.raises(SystemExit) as raised:
+        main(["deploy", "--site", "missing"])
+
+    assert raised.value.code == ExitCode.DEPLOYMENT
+    assert "required artifact does not exist" in capsys.readouterr().err
+
+
+def test_verify_missing_build_uses_verification_exit_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("AFTWIN_BUILD_DIR", str(tmp_path))
+
+    with pytest.raises(SystemExit) as raised:
+        main(["verify", "--site", "missing", "--output", "json"])
+
+    assert raised.value.code == ExitCode.VERIFICATION
+    assert '"code": "runtime_verification_failed"' in capsys.readouterr().err

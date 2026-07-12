@@ -75,6 +75,9 @@ def _clear_generated(root: Path) -> None:
             shutil.rmtree(path)
         elif path.exists():
             path.unlink()
+    runtime_report = root / "reports" / "runtime-verification.json"
+    if runtime_report.exists():
+        runtime_report.unlink()
 
 
 def _manifest_paths(root: Path) -> tuple[Path, ...]:
@@ -85,9 +88,12 @@ def _manifest_paths(root: Path) -> tuple[Path, ...]:
         root / "expected-state.json",
         root / "inventory.json",
     ]
-    for directory in (root / "configs", root / "source", root / "reports"):
+    for directory in (root / "configs", root / "source"):
         if directory.is_dir():
             paths.extend(path for path in directory.rglob("*") if path.is_file())
+    static_report = root / "reports" / "static-validation.json"
+    if static_report.is_file():
+        paths.append(static_report)
     return tuple(paths)
 
 

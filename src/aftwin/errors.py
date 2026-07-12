@@ -108,3 +108,15 @@ class CompilationError(AftwinError):
             exit_code=ExitCode.COMPILE,
             details=details or {},
         )
+
+
+class RuntimeVerificationError(AftwinError):
+    """Runtime evidence could not be collected or parsed safely."""
+
+    def __init__(self, reason: str, *, details: dict[str, Any] | None = None) -> None:
+        super().__init__(
+            code="runtime_verification_failed",
+            message=f"Runtime verification failed: {reason}",
+            exit_code=ExitCode.VERIFICATION,
+            details=details or {},
+        )

@@ -32,6 +32,10 @@ topology, configuration, expected state, inventory, and manifest files use
 stable ordering and final newlines. The build hash covers compiler pipeline
 outputs and excludes Containerlab runtime working directories.
 
+The topology declares the dedicated `aftwin-mgmt` Docker network with pinned
+IPv4 and IPv6 subnets. This avoids dependence on Containerlab's default
+management subnet, which commonly overlaps unrelated local Docker projects.
+
 ## Consequences
 
 - Router startup does not need a custom wrapper or mutable configuration bind.

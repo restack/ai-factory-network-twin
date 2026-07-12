@@ -50,8 +50,20 @@ compile site="aif-lab":
 endpoint-image:
     docker build -t aftwin-endpoint:0.1.0 deploy/endpoint
 
+lab-up site="aif-lab":
+    uv run aftwin deploy --site {{site}}
+
+verify site="aif-lab":
+    uv run aftwin verify --site {{site}}
+
+lab-down site="aif-lab":
+    uv run aftwin lab down --site {{site}}
+
 test-netbox: netbox-up
     NETBOX_URL=http://localhost:8000 \
     NETBOX_TOKEN=nbt_aftwindev001.0123456789abcdef0123456789abcdef01234567 \
     AFTWIN_RUN_NETBOX_INTEGRATION=1 \
     uv run pytest -m netbox
+
+test-containerlab: endpoint-image
+    AFTWIN_RUN_CONTAINERLAB_INTEGRATION=1 uv run pytest -m containerlab
