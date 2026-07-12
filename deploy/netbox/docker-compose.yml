@@ -1,0 +1,100 @@
+name: aftwin-netbox
+
+services:
+  netbox: &netbox
+    image: docker.io/netboxcommunity/netbox:v4.6.4-5.0.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+    environment: &netbox-environment
+      API_TOKEN_PEPPER_1: aftwin-development-pepper-change-before-production
+      CORS_ORIGIN_ALLOW_ALL: "true"
+      DB_HOST: postgres
+      DB_NAME: netbox
+      DB_PASSWORD: netbox
+      DB_USER: netbox
+      GRAPHQL_ENABLED: "true"
+      REDIS_CACHE_DATABASE: 1
+      REDIS_CACHE_HOST: redis-cache
+      REDIS_CACHE_PASSWORD: netbox
+      REDIS_DATABASE: 0
+      REDIS_HOST: redis
+      REDIS_PASSWORD: netbox
+      SECRET_KEY: aftwin-development-only-secret-key-change-before-production-0001
+      SKIP_SUPERUSER: "false"
+      SUPERUSER_API_KEY: aftwindev001
+      SUPERUSER_API_TOKEN: 0123456789abcdef0123456789abcdef01234567
+      SUPERUSER_EMAIL: admin@example.test
+      SUPERUSER_NAME: admin
+      SUPERUSER_PASSWORD: admin
+    ports:
+      - "8000:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/login/ >/dev/null || exit 1"]
+      start_period: 120s
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - netbox-media:/opt/netbox/netbox/media
+
+  netbox-worker:
+    <<: *netbox
+    command:
+      - /opt/netbox/venv/bin/python
+      - /opt/netbox/netbox/manage.py
+      - rqworker
+    depends_on:
+      netbox:
+        condition: service_healthy
+    environment: *netbox-environment
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep -q rqworker || exit 1"]
+      start_period: 30s
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    ports: []
+
+  postgres:
+    image: docker.io/postgres:18-alpine
+    environment:
+      POSTGRES_DB: netbox
+      POSTGRES_PASSWORD: netbox
+      POSTGRES_USER: netbox
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -q -t 2 -d netbox -U netbox"]
+      start_period: 20s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - netbox-postgres:/var/lib/postgresql
+
+  redis: &redis
+    image: docker.io/valkey/valkey:9.0-alpine
+    command: ["valkey-server", "--appendonly", "yes", "--requirepass", "netbox"]
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli --pass netbox ping | grep -q PONG"]
+      start_period: 5s
+      interval: 2s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - netbox-redis:/data
+
+  redis-cache:
+    <<: *redis
+    command: ["valkey-server", "--requirepass", "netbox"]
+    volumes:
+      - netbox-redis-cache:/data
+
+volumes:
+  netbox-media:
+  netbox-postgres:
+  netbox-redis:
+  netbox-redis-cache:

@@ -2,9 +2,10 @@
 
 NetBox-driven AI cluster network digital twin and validation lab.
 
-This repository currently contains the M0 project scaffold. It establishes the
-Python package, CLI contract, settings, structured errors, and development checks.
-Network compilation and runtime behavior are planned for later milestones in
+The repository currently contains the M1 NetBox foundation: the Python package
+and CLI contract, a pinned local NetBox environment, a versioned smoke fixture,
+an idempotent seeder, a read-only adapter, and typed fabric domain models.
+Network policy, compilation, and runtime verification are planned in
 [`PLANNING.md`](PLANNING.md).
 
 ## Requirements
@@ -22,3 +23,18 @@ just check
 ```
 
 Copy `.env.example` to `.env` before using commands that connect to NetBox.
+
+## Local NetBox smoke workflow
+
+```bash
+cp .env.example .env
+just netbox-up
+just seed
+just seed  # creates no duplicates
+just test-netbox
+just netbox-down
+```
+
+The Compose credentials are public development defaults and must never be used
+outside the local fixture environment. See
+[`deploy/netbox/README.md`](deploy/netbox/README.md) for lifecycle details.

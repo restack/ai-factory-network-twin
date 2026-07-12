@@ -2,12 +2,24 @@
 
 import json
 import sys
+from pathlib import Path
 from typing import Literal, NoReturn
 
 from cyclopts import App
+from pydantic import ValidationError
+from yaml import YAMLError
 
 from aftwin import __version__
-from aftwin.errors import AftwinError, NotImplementedCommandError
+from aftwin.errors import (
+    AftwinError,
+    FixtureError,
+    NetBoxOperationError,
+    NotImplementedCommandError,
+)
+from aftwin.netbox.client import NetBoxClient
+from aftwin.netbox.fixture import load_fixture
+from aftwin.netbox.seeder import NetBoxSeeder
+from aftwin.settings import Settings
 
 OutputFormat = Literal["human", "json"]
 
@@ -25,10 +37,26 @@ def _pending(command: str, milestone: str) -> NoReturn:
 
 
 @app.command
-def seed(fixture: str = "fixtures/mini-dual-plane.yaml", *, output: OutputFormat = "human") -> None:
-    """Seed a development NetBox fixture (planned for M1)."""
-    del fixture, output
-    _pending("seed", "M1")
+def seed(fixture: Path = Path("fixtures/smoke.yaml"), *, output: OutputFormat = "human") -> None:
+    """Idempotently seed a development NetBox fixture."""
+    settings = Settings()
+    if settings.netbox_token is None:
+        raise NetBoxOperationError("authenticate", "NETBOX_TOKEN is not configured")
+    try:
+        fixture_model = load_fixture(fixture)
+    except (OSError, ValidationError, YAMLError) as error:
+        raise FixtureError(str(fixture), str(error)) from error
+    result = NetBoxSeeder(NetBoxClient(settings.netbox_url, settings.netbox_token)).seed(
+        fixture_model
+    )
+    payload = {"fixture": fixture_model.name, "site": fixture_model.site.slug, **result.as_dict()}
+    if output == "json":
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        print(
+            f"Seeded fixture '{fixture_model.name}' for site '{fixture_model.site.slug}': "
+            f"{result.created} created, {result.existing} existing."
+        )
 
 
 @app.command

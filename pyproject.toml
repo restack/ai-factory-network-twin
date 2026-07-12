@@ -11,8 +11,10 @@ requires-python = ">=3.12"
 authors = [{ name = "Aaron Yoon" }]
 dependencies = [
   "cyclopts>=3.0",
+  "pynetbox==7.8.0",
   "pydantic>=2.10",
   "pydantic-settings>=2.7",
+  "pyyaml>=6.0",
 ]
 
 [project.scripts]
@@ -31,6 +33,7 @@ packages = ["src/aftwin"]
 
 [tool.pytest.ini_options]
 addopts = "--strict-config --strict-markers -q"
+markers = ["netbox: requires the local NetBox integration environment"]
 testpaths = ["tests"]
 
 [tool.coverage.run]

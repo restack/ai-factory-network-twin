@@ -26,3 +26,20 @@ check: lint typecheck test
 help:
     uv run aftwin --help
 
+netbox-up:
+    docker compose -f deploy/netbox/docker-compose.yml up -d --wait
+
+netbox-down:
+    docker compose -f deploy/netbox/docker-compose.yml down
+
+netbox-reset:
+    docker compose -f deploy/netbox/docker-compose.yml down --volumes
+
+seed fixture="fixtures/smoke.yaml":
+    uv run aftwin seed --fixture {{fixture}}
+
+test-netbox: netbox-up
+    NETBOX_URL=http://localhost:8000 \
+    NETBOX_TOKEN=nbt_aftwindev001.0123456789abcdef0123456789abcdef01234567 \
+    AFTWIN_RUN_NETBOX_INTEGRATION=1 \
+    uv run pytest -m netbox
