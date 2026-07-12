@@ -56,5 +56,13 @@ def render_containerlab_topology(
         for link in fabric.links
     ]
     links = [{"endpoints": list(pair)} for pair in sorted(endpoint_pairs)]
-    payload = {"name": fabric.name, "topology": {"nodes": nodes, "links": links}}
+    payload = {
+        "name": fabric.name,
+        "mgmt": {
+            "network": "aftwin-mgmt",
+            "ipv4-subnet": "172.30.30.0/24",
+            "ipv6-subnet": "3fff:172:30:30::/64",
+        },
+        "topology": {"nodes": nodes, "links": links},
+    }
     return GENERATED_HEADER + yaml.safe_dump(payload, sort_keys=False, default_flow_style=False)

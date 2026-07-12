@@ -60,12 +60,17 @@ def test_runtime_working_files_do_not_change_compiler_identity(tmp_path: Path) -
     runtime_file = tmp_path / "clab-mini-dual-plane" / "graph" / "topology.clab.mermaid"
     runtime_file.parent.mkdir(parents=True)
     runtime_file.write_text("runtime output\n")
+    runtime_report = tmp_path / "reports" / "runtime-verification.json"
+    runtime_report.parent.mkdir()
+    runtime_report.write_text('{"passed": true}\n')
 
     second = _compile(tmp_path)
 
     assert first == second
     assert runtime_file.exists()
+    assert not runtime_report.exists()
     assert all(not item.path.startswith("clab-") for item in second.files)
+    assert all(item.path != "reports/runtime-verification.json" for item in second.files)
 
 
 def test_relative_output_directory_is_supported(
@@ -84,6 +89,8 @@ def test_topology_has_expected_shape_and_pinned_router_image(tmp_path: Path) -> 
     topology = yaml.safe_load((tmp_path / "topology.clab.yml").read_text())
 
     assert topology["name"] == "mini-dual-plane"
+    assert topology["mgmt"]["network"] == "aftwin-mgmt"
+    assert topology["mgmt"]["ipv4-subnet"] == "172.30.30.0/24"
     assert len(topology["topology"]["nodes"]) == 12
     assert len(topology["topology"]["links"]) == 16
     assert "@sha256:" in topology["topology"]["nodes"]["spine-a1"]["image"]

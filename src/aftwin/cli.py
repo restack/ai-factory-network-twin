@@ -3,7 +3,7 @@
 import json
 import sys
 from pathlib import Path
-from typing import Literal, NoReturn
+from typing import Literal
 
 from cyclopts import App
 from pydantic import ValidationError
@@ -17,8 +17,8 @@ from aftwin.errors import (
     ExitCode,
     FixtureError,
     NetBoxOperationError,
-    NotImplementedCommandError,
     PolicyProfileError,
+    RuntimeVerificationError,
     SourceValidationError,
 )
 from aftwin.netbox.adapter import NetBoxAdapter
@@ -27,7 +27,11 @@ from aftwin.netbox.fixture import load_fixture
 from aftwin.netbox.seeder import NetBoxSeeder
 from aftwin.policy.engine import PolicyEngine
 from aftwin.policy.profile import load_policy_profile
+from aftwin.runtime.containerlab import Containerlab
+from aftwin.runtime.executor import SubprocessExecutor
+from aftwin.runtime.lifecycle import LabLifecycle, LabLifecycleError
 from aftwin.settings import Settings
+from aftwin.verify.verifier import RuntimeVerifier
 
 OutputFormat = Literal["human", "json"]
 
@@ -38,10 +42,6 @@ app = App(
 )
 lab = App(name="lab", help="Manage the local Containerlab lifecycle.")
 app.command(lab)
-
-
-def _pending(command: str, milestone: str) -> NoReturn:
-    raise NotImplementedCommandError(command, milestone)
 
 
 @app.command
@@ -158,37 +158,74 @@ def compile(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
 def deploy(
     site: str = "aif-lab", *, reconfigure: bool = False, output: OutputFormat = "human"
 ) -> None:
-    """Deploy a compiled lab (planned for M4)."""
-    del site, reconfigure, output
-    _pending("deploy", "M4")
+    """Deploy a statically validated compiled lab."""
+    settings = Settings()
+    lifecycle = _lab_lifecycle()
+    result = lifecycle.deploy(settings.build_dir / site, reconfigure=reconfigure)
+    payload = {"site": site, "operation": "deploy", "changed": result.changed, "running": True}
+    if output == "json":
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        print(f"Lab deployed for site '{site}'.")
 
 
 @app.command
 def verify(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
-    """Verify a running lab (planned for M4)."""
-    del site, output
-    _pending("verify", "M4")
+    """Verify BGP, routes, reachability, and plane isolation."""
+    settings = Settings()
+    site_dir = settings.build_dir / site
+    containerlab = _containerlab()
+    try:
+        inspection = LabLifecycle(containerlab).inspect(site_dir)
+    except LabLifecycleError as error:
+        raise RuntimeVerificationError(error.message, details=error.details) from error
+    if not inspection.running:
+        raise RuntimeVerificationError("the lab is not running", details={"site": site})
+    report = RuntimeVerifier(containerlab).verify(site_dir)
+    print(report.to_json() if output == "json" else report.render_human(), end="")
+    if not report.passed:
+        raise SystemExit(ExitCode.VERIFICATION)
 
 
 @lab.command(name="up")
 def lab_up(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
-    """Compile and deploy the local lab (planned for M4)."""
-    del site, output
-    _pending("lab up", "M4")
+    """Compile and deploy the local lab."""
+    compile(site=site, output=output)
+    deploy(site=site, output=output)
 
 
 @lab.command(name="test")
 def lab_test(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
-    """Verify the local lab (planned for M4)."""
-    del site, output
-    _pending("lab test", "M4")
+    """Verify the local lab."""
+    verify(site=site, output=output)
 
 
 @lab.command(name="down")
 def lab_down(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
-    """Destroy the local lab (planned for M4)."""
-    del site, output
-    _pending("lab down", "M4")
+    """Destroy the local lab and remove its runtime working directory."""
+    settings = Settings()
+    result = _lab_lifecycle().destroy(settings.build_dir / site)
+    payload = {
+        "site": site,
+        "operation": "destroy",
+        "changed": result.changed,
+        "running": False,
+    }
+    if output == "json":
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        action = "destroyed" if result.changed else "already absent"
+        print(f"Lab {action} for site '{site}'.")
+
+
+def _containerlab() -> Containerlab:
+    """Construct the default runtime boundary."""
+    return Containerlab(SubprocessExecutor())
+
+
+def _lab_lifecycle() -> LabLifecycle:
+    """Construct the guarded lifecycle service."""
+    return LabLifecycle(_containerlab())
 
 
 def _render_error(error: AftwinError, output: OutputFormat) -> None:

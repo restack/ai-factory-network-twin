@@ -12,8 +12,9 @@
 - **M0:** Complete and merged
 - **M1:** Complete
 - **M2:** Complete
-- **M3:** Complete locally; pending PR merge
-- **Next:** M4 deploy and runtime verification
+- **M3:** Complete and merged
+- **M4:** Complete locally; pending PR merge
+- **Next:** M5 failure scenarios
 
 ## 1. Decision Summary
 

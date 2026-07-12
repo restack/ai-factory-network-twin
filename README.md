@@ -3,10 +3,11 @@
 NetBox-driven AI cluster network digital twin and validation lab.
 
 The repository currently contains the M1 NetBox foundation, M2 static policy
-engine, and M3 deterministic compiler. It produces a Containerlab topology,
-FRR configurations, Linux endpoint VRF setup, expected runtime state, inventory,
-and a content-addressed manifest from validated NetBox intent. Deployment and
-runtime verification are the next milestone in [`PLANNING.md`](PLANNING.md).
+engine, M3 deterministic compiler, and M4 deployment/runtime verification. It
+produces and deploys a Containerlab topology, then verifies FRR BGP sessions,
+routes and ECMP, Linux endpoint reachability, and cross-plane isolation against
+generated expected state. Failure-scenario automation is the next milestone in
+[`PLANNING.md`](PLANNING.md).
 
 ## Requirements
 
@@ -35,6 +36,10 @@ just seed
 just seed  # creates no duplicates
 just validate
 just compile
+just endpoint-image
+just lab-up
+just verify
+just lab-down
 just test-netbox
 just netbox-down
 ```
@@ -45,7 +50,13 @@ for the smaller one-spine/one-leaf development slice.
 `just compile` writes deterministic artifacts to `build/aif-lab/`. Repeating
 the command with unchanged source produces the same `manifest.json` build hash.
 The local endpoint image required by the generated topology can be prepared
-with `just endpoint-image`; it is not deployed until M4.
+with `just endpoint-image`. `just lab-up` deploys only a statically validated
+build. `just verify` writes `build/aif-lab/reports/runtime-verification.json`,
+and `just lab-down` removes only the matching lab and its runtime directory.
+
+Run the privileged local Containerlab integration suite with
+`just test-containerlab`. The test always destroys its ephemeral lab in a
+`finally` cleanup path.
 
 The Compose credentials are public development defaults and must never be used
 outside the local fixture environment. See

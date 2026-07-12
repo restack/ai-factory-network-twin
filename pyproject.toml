@@ -34,7 +34,10 @@ packages = ["src/aftwin"]
 
 [tool.pytest.ini_options]
 addopts = "--strict-config --strict-markers -q"
-markers = ["netbox: requires the local NetBox integration environment"]
+markers = [
+  "containerlab: requires Docker, Containerlab, and privileged local networking",
+  "netbox: requires the local NetBox integration environment",
+]
 testpaths = ["tests"]
 
 [tool.coverage.run]
