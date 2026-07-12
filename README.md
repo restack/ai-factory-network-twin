@@ -3,11 +3,12 @@
 NetBox-driven AI cluster network digital twin and validation lab.
 
 The repository currently contains the M1 NetBox foundation, M2 static policy
-engine, M3 deterministic compiler, and M4 deployment/runtime verification. It
-produces and deploys a Containerlab topology, then verifies FRR BGP sessions,
+engine, M3 deterministic compiler, M4 deployment/runtime verification, and M5
+reversible failure scenarios. It produces and deploys a Containerlab topology,
+then verifies FRR BGP sessions,
 routes and ECMP, Linux endpoint reachability, and cross-plane isolation against
-generated expected state. Failure-scenario automation is the next milestone in
-[`PLANNING.md`](PLANNING.md).
+generated expected state. The current implementation covers the functional MVP
+in [`PLANNING.md`](PLANNING.md).
 
 ## Requirements
 
@@ -39,6 +40,8 @@ just compile
 just endpoint-image
 just lab-up
 just verify
+just scenario-link
+just scenario-spine
 just lab-down
 just test-netbox
 just netbox-down
@@ -54,9 +57,31 @@ with `just endpoint-image`. `just lab-up` deploys only a statically validated
 build. `just verify` writes `build/aif-lab/reports/runtime-verification.json`,
 and `just lab-down` removes only the matching lab and its runtime directory.
 
+`just scenario-link` disables one Plane A leaf-to-spine interface and proves
+that endpoint connectivity survives through the alternate spine.
+`just scenario-spine` disables every data interface on one Plane A spine and
+proves the plane remains reachable. Both commands restore every interface in a
+`finally` path and require the full BGP/route/ECMP verifier to pass afterward.
+Scenario evidence is written below `build/aif-lab/reports/scenarios/`.
+
 Run the privileged local Containerlab integration suite with
 `just test-containerlab`. The test always destroys its ephemeral lab in a
 `finally` cleanup path.
+
+## One-command demo
+
+With Docker, Containerlab 0.77.0, `uv`, and `just` installed, run:
+
+```bash
+just demo
+```
+
+The demo starts the pinned local NetBox environment, builds the endpoint image,
+seeds and validates the fixture, compiles and deploys the lab, runs baseline
+verification and both failure scenarios, verifies recovery, then destroys the
+lab and stops NetBox. A trap performs scoped cleanup if any step fails. The
+development token used by the Compose fixture is local-only and is never
+printed.
 
 The Compose credentials are public development defaults and must never be used
 outside the local fixture environment. See

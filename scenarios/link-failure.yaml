@@ -1,0 +1,20 @@
+schema_version: 1
+name: leaf-spine-link-failure
+description: Verify both fabric planes remain reachable when one Plane A leaf uplink fails.
+failure:
+  type: link-down
+  target:
+    node: leaf-a1
+    interfaces:
+      - eth1
+expected:
+  surviving_planes:
+    - a
+    - b
+  probes:
+    - plane: a
+      source_node: gpu01
+      destination_node: gpu03
+    - plane: b
+      source_node: gpu01
+      destination_node: gpu03

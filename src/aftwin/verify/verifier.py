@@ -12,12 +12,13 @@ from typing import Any, TypeVar, cast
 from pydantic import ValidationError
 
 from aftwin.compiler.expected_state import ExpectedState
+from aftwin.domain.enums import FabricPlane
 from aftwin.errors import RuntimeVerificationError
 from aftwin.runtime.executor import CommandExecutionError, CommandResult
 from aftwin.runtime.lifecycle import ContainerlabRuntime
 from aftwin.verify.bgp import ObservedBgpRouter, parse_bgp_summary, verify_bgp
 from aftwin.verify.reachability import PingOutcome, parse_ping_outcome, verify_reachability
-from aftwin.verify.report import VerificationReport
+from aftwin.verify.report import VerificationReport, VerificationSection
 from aftwin.verify.routes import ObservedRouteTable, parse_route_table, verify_routes
 
 T = TypeVar("T")
@@ -132,6 +133,21 @@ class RuntimeVerifier:
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(report.to_json(), encoding="utf-8", newline="\n")
         return report
+
+    def verify_connectivity(self, site_dir: Path) -> tuple[VerificationSection, ...]:
+        """Verify only endpoint reachability and isolation for a failure scenario."""
+        expected = self.load_expected(site_dir)
+        topology = site_dir / "topology.clab.yml"
+        pings = self._collect_pings(topology, expected)
+        return verify_reachability(expected.reachability, expected.isolation, pings)
+
+    def reachability_contract(self, site_dir: Path) -> frozenset[tuple[FabricPlane, str, str]]:
+        """Return directed endpoint probes available to scenario contracts."""
+        expected = self.load_expected(site_dir)
+        return frozenset(
+            (probe.plane, probe.source_node, probe.destination_node)
+            for probe in expected.reachability
+        )
 
     def _exec(self, topology: Path, node: str, command: Sequence[str]) -> NodeCommandResult:
         try:

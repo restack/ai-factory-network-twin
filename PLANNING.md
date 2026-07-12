@@ -13,8 +13,9 @@
 - **M1:** Complete
 - **M2:** Complete
 - **M3:** Complete and merged
-- **M4:** Complete locally; pending PR merge
-- **Next:** M5 failure scenarios
+- **M4:** Complete and merged
+- **M5:** Complete locally; clean-room demo passed, pending PR merge
+- **Next:** Final MVP Definition of Done audit
 
 ## 1. Decision Summary
 

@@ -105,6 +105,12 @@ def test_runtime_verifier_collects_complete_passing_matrix(tmp_path: Path) -> No
     }
     assert (tmp_path / "reports" / "runtime-verification.json").read_text() == report.to_json()
 
+    connectivity = RuntimeVerifier(PassingRuntime(expected), max_workers=4).verify_connectivity(
+        tmp_path
+    )
+    assert all(section.successful for section in connectivity)
+    assert len(RuntimeVerifier(PassingRuntime(expected)).reachability_contract(tmp_path)) == 24
+
 
 def test_decode_node_command_requires_inner_return_code() -> None:
     result = CommandResult(

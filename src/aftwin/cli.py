@@ -30,6 +30,8 @@ from aftwin.policy.profile import load_policy_profile
 from aftwin.runtime.containerlab import Containerlab
 from aftwin.runtime.executor import SubprocessExecutor
 from aftwin.runtime.lifecycle import LabLifecycle, LabLifecycleError
+from aftwin.scenario.models import load_scenario
+from aftwin.scenario.runner import ScenarioRunner
 from aftwin.settings import Settings
 from aftwin.verify.verifier import RuntimeVerifier
 
@@ -41,7 +43,9 @@ app = App(
     version=__version__,
 )
 lab = App(name="lab", help="Manage the local Containerlab lifecycle.")
+scenario_app = App(name="scenario", help="Run reversible fabric failure scenarios.")
 app.command(lab)
+app.command(scenario_app)
 
 
 @app.command
@@ -216,6 +220,35 @@ def lab_down(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
     else:
         action = "destroyed" if result.changed else "already absent"
         print(f"Lab {action} for site '{site}'.")
+
+
+@scenario_app.command(name="run")
+def scenario_run(
+    path: Path = Path("scenarios/link-failure.yaml"),
+    *,
+    site: str = "aif-lab",
+    output: OutputFormat = "human",
+) -> None:
+    """Run one reversible failure scenario against a healthy lab."""
+    try:
+        scenario = load_scenario(path)
+    except (OSError, ValidationError, YAMLError) as error:
+        raise RuntimeVerificationError(
+            f"failure scenario is invalid: {path}", details={"path": path.as_posix()}
+        ) from error
+    settings = Settings()
+    site_dir = settings.build_dir / site
+    containerlab = _containerlab()
+    try:
+        inspection = LabLifecycle(containerlab).inspect(site_dir)
+    except LabLifecycleError as error:
+        raise RuntimeVerificationError(error.message, details=error.details) from error
+    if not inspection.running:
+        raise RuntimeVerificationError("the lab is not running", details={"site": site})
+    report = ScenarioRunner(containerlab, RuntimeVerifier(containerlab)).run(site_dir, scenario)
+    print(report.to_json() if output == "json" else report.render_human(), end="")
+    if not report.passed:
+        raise SystemExit(ExitCode.VERIFICATION)
 
 
 def _containerlab() -> Containerlab:

@@ -21,6 +21,9 @@ typecheck:
 test:
     uv run pytest
 
+build:
+    uv build
+
 check: lint typecheck test
 
 help:
@@ -56,6 +59,12 @@ lab-up site="aif-lab":
 verify site="aif-lab":
     uv run aftwin verify --site {{site}}
 
+scenario-link site="aif-lab":
+    uv run aftwin scenario run --site {{site}} --path scenarios/link-failure.yaml
+
+scenario-spine site="aif-lab":
+    uv run aftwin scenario run --site {{site}} --path scenarios/spine-failure.yaml
+
 lab-down site="aif-lab":
     uv run aftwin lab down --site {{site}}
 
@@ -67,3 +76,6 @@ test-netbox: netbox-up
 
 test-containerlab: endpoint-image
     AFTWIN_RUN_CONTAINERLAB_INTEGRATION=1 uv run pytest -m containerlab
+
+demo:
+    bash scripts/demo.sh

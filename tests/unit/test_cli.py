@@ -66,3 +66,15 @@ def test_verify_missing_build_uses_verification_exit_code(
 
     assert raised.value.code == ExitCode.VERIFICATION
     assert '"code": "runtime_verification_failed"' in capsys.readouterr().err
+
+
+def test_scenario_invalid_path_uses_verification_exit_code(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    missing = tmp_path / "missing.yaml"
+
+    with pytest.raises(SystemExit) as raised:
+        main(["scenario", "run", "--path", str(missing), "--output", "json"])
+
+    assert raised.value.code == ExitCode.VERIFICATION
+    assert '"code": "runtime_verification_failed"' in capsys.readouterr().err
