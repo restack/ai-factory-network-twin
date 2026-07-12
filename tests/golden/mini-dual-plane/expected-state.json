@@ -1,0 +1,746 @@
+{
+  "schema_version": 1,
+  "fabric": "mini-dual-plane",
+  "site": "aif-lab",
+  "source_revision": "a4736d0373aae95f7ebb83167ef25d1516738b7e959207ee1c14c3c15872ba06",
+  "bgp_adjacencies": [
+    {
+      "plane": "a",
+      "leaf": {
+        "node": "leaf-a1",
+        "address": "10.0.0.1",
+        "asn": 65101
+      },
+      "spine": {
+        "node": "spine-a1",
+        "address": "10.0.0.0",
+        "asn": 65001
+      }
+    },
+    {
+      "plane": "a",
+      "leaf": {
+        "node": "leaf-a1",
+        "address": "10.0.0.5",
+        "asn": 65101
+      },
+      "spine": {
+        "node": "spine-a2",
+        "address": "10.0.0.4",
+        "asn": 65002
+      }
+    },
+    {
+      "plane": "a",
+      "leaf": {
+        "node": "leaf-a2",
+        "address": "10.0.0.3",
+        "asn": 65102
+      },
+      "spine": {
+        "node": "spine-a1",
+        "address": "10.0.0.2",
+        "asn": 65001
+      }
+    },
+    {
+      "plane": "a",
+      "leaf": {
+        "node": "leaf-a2",
+        "address": "10.0.0.7",
+        "asn": 65102
+      },
+      "spine": {
+        "node": "spine-a2",
+        "address": "10.0.0.6",
+        "asn": 65002
+      }
+    },
+    {
+      "plane": "b",
+      "leaf": {
+        "node": "leaf-b1",
+        "address": "10.1.0.1",
+        "asn": 65111
+      },
+      "spine": {
+        "node": "spine-b1",
+        "address": "10.1.0.0",
+        "asn": 65011
+      }
+    },
+    {
+      "plane": "b",
+      "leaf": {
+        "node": "leaf-b1",
+        "address": "10.1.0.5",
+        "asn": 65111
+      },
+      "spine": {
+        "node": "spine-b2",
+        "address": "10.1.0.4",
+        "asn": 65012
+      }
+    },
+    {
+      "plane": "b",
+      "leaf": {
+        "node": "leaf-b2",
+        "address": "10.1.0.3",
+        "asn": 65112
+      },
+      "spine": {
+        "node": "spine-b1",
+        "address": "10.1.0.2",
+        "asn": 65011
+      }
+    },
+    {
+      "plane": "b",
+      "leaf": {
+        "node": "leaf-b2",
+        "address": "10.1.0.7",
+        "asn": 65112
+      },
+      "spine": {
+        "node": "spine-b2",
+        "address": "10.1.0.6",
+        "asn": 65012
+      }
+    }
+  ],
+  "endpoint_prefixes": [
+    {
+      "node": "gpu01",
+      "interface": "eth1",
+      "plane": "a",
+      "vrf": "fabric-a",
+      "address": "10.0.1.1",
+      "prefix": "10.0.1.0/31",
+      "gateway": "10.0.1.0",
+      "attached_leaf": "leaf-a1"
+    },
+    {
+      "node": "gpu02",
+      "interface": "eth1",
+      "plane": "a",
+      "vrf": "fabric-a",
+      "address": "10.0.1.3",
+      "prefix": "10.0.1.2/31",
+      "gateway": "10.0.1.2",
+      "attached_leaf": "leaf-a1"
+    },
+    {
+      "node": "gpu03",
+      "interface": "eth1",
+      "plane": "a",
+      "vrf": "fabric-a",
+      "address": "10.0.1.5",
+      "prefix": "10.0.1.4/31",
+      "gateway": "10.0.1.4",
+      "attached_leaf": "leaf-a2"
+    },
+    {
+      "node": "gpu04",
+      "interface": "eth1",
+      "plane": "a",
+      "vrf": "fabric-a",
+      "address": "10.0.1.7",
+      "prefix": "10.0.1.6/31",
+      "gateway": "10.0.1.6",
+      "attached_leaf": "leaf-a2"
+    },
+    {
+      "node": "gpu01",
+      "interface": "eth2",
+      "plane": "b",
+      "vrf": "fabric-b",
+      "address": "10.1.1.1",
+      "prefix": "10.1.1.0/31",
+      "gateway": "10.1.1.0",
+      "attached_leaf": "leaf-b1"
+    },
+    {
+      "node": "gpu02",
+      "interface": "eth2",
+      "plane": "b",
+      "vrf": "fabric-b",
+      "address": "10.1.1.3",
+      "prefix": "10.1.1.2/31",
+      "gateway": "10.1.1.2",
+      "attached_leaf": "leaf-b1"
+    },
+    {
+      "node": "gpu03",
+      "interface": "eth2",
+      "plane": "b",
+      "vrf": "fabric-b",
+      "address": "10.1.1.5",
+      "prefix": "10.1.1.4/31",
+      "gateway": "10.1.1.4",
+      "attached_leaf": "leaf-b2"
+    },
+    {
+      "node": "gpu04",
+      "interface": "eth2",
+      "plane": "b",
+      "vrf": "fabric-b",
+      "address": "10.1.1.7",
+      "prefix": "10.1.1.6/31",
+      "gateway": "10.1.1.6",
+      "attached_leaf": "leaf-b2"
+    }
+  ],
+  "router_prefixes": [
+    {
+      "router": "leaf-a1",
+      "plane": "a",
+      "prefix": "10.0.1.0/31",
+      "protocol": "connected",
+      "min_next_hops": 0,
+      "endpoint_node": "gpu01",
+      "attached_leaf": "leaf-a1"
+    },
+    {
+      "router": "leaf-a1",
+      "plane": "a",
+      "prefix": "10.0.1.2/31",
+      "protocol": "connected",
+      "min_next_hops": 0,
+      "endpoint_node": "gpu02",
+      "attached_leaf": "leaf-a1"
+    },
+    {
+      "router": "leaf-a1",
+      "plane": "a",
+      "prefix": "10.0.1.4/31",
+      "protocol": "bgp",
+      "min_next_hops": 2,
+      "endpoint_node": "gpu03",
+      "attached_leaf": "leaf-a2"
+    },
+    {
+      "router": "leaf-a1",
+      "plane": "a",
+      "prefix": "10.0.1.6/31",
+      "protocol": "bgp",
+      "min_next_hops": 2,
+      "endpoint_node": "gpu04",
+      "attached_leaf": "leaf-a2"
+    },
+    {
+      "router": "leaf-a2",
+      "plane": "a",
+      "prefix": "10.0.1.0/31",
+      "protocol": "bgp",
+      "min_next_hops": 2,
+      "endpoint_node": "gpu01",
+      "attached_leaf": "leaf-a1"
+    },
+    {
+      "router": "leaf-a2",
+      "plane": "a",
+      "prefix": "10.0.1.2/31",
+      "protocol": "bgp",
+      "min_next_hops": 2,
+      "endpoint_node": "gpu02",
+      "attached_leaf": "leaf-a1"
+    },
+    {
+      "router": "leaf-a2",
+      "plane": "a",
+      "prefix": "10.0.1.4/31",
+      "protocol": "connected",
+      "min_next_hops": 0,
+      "endpoint_node": "gpu03",
+      "attached_leaf": "leaf-a2"
+    },
+    {
+      "router": "leaf-a2",
+      "plane": "a",
+      "prefix": "10.0.1.6/31",
+      "protocol": "connected",
+      "min_next_hops": 0,
+      "endpoint_node": "gpu04",
+      "attached_leaf": "leaf-a2"
+    },
+    {
+      "router": "spine-a1",
+      "plane": "a",
+      "prefix": "10.0.1.0/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu01",
+      "attached_leaf": "leaf-a1"
+    },
+    {
+      "router": "spine-a1",
+      "plane": "a",
+      "prefix": "10.0.1.2/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu02",
+      "attached_leaf": "leaf-a1"
+    },
+    {
+      "router": "spine-a1",
+      "plane": "a",
+      "prefix": "10.0.1.4/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu03",
+      "attached_leaf": "leaf-a2"
+    },
+    {
+      "router": "spine-a1",
+      "plane": "a",
+      "prefix": "10.0.1.6/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu04",
+      "attached_leaf": "leaf-a2"
+    },
+    {
+      "router": "spine-a2",
+      "plane": "a",
+      "prefix": "10.0.1.0/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu01",
+      "attached_leaf": "leaf-a1"
+    },
+    {
+      "router": "spine-a2",
+      "plane": "a",
+      "prefix": "10.0.1.2/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu02",
+      "attached_leaf": "leaf-a1"
+    },
+    {
+      "router": "spine-a2",
+      "plane": "a",
+      "prefix": "10.0.1.4/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu03",
+      "attached_leaf": "leaf-a2"
+    },
+    {
+      "router": "spine-a2",
+      "plane": "a",
+      "prefix": "10.0.1.6/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu04",
+      "attached_leaf": "leaf-a2"
+    },
+    {
+      "router": "leaf-b1",
+      "plane": "b",
+      "prefix": "10.1.1.0/31",
+      "protocol": "connected",
+      "min_next_hops": 0,
+      "endpoint_node": "gpu01",
+      "attached_leaf": "leaf-b1"
+    },
+    {
+      "router": "leaf-b1",
+      "plane": "b",
+      "prefix": "10.1.1.2/31",
+      "protocol": "connected",
+      "min_next_hops": 0,
+      "endpoint_node": "gpu02",
+      "attached_leaf": "leaf-b1"
+    },
+    {
+      "router": "leaf-b1",
+      "plane": "b",
+      "prefix": "10.1.1.4/31",
+      "protocol": "bgp",
+      "min_next_hops": 2,
+      "endpoint_node": "gpu03",
+      "attached_leaf": "leaf-b2"
+    },
+    {
+      "router": "leaf-b1",
+      "plane": "b",
+      "prefix": "10.1.1.6/31",
+      "protocol": "bgp",
+      "min_next_hops": 2,
+      "endpoint_node": "gpu04",
+      "attached_leaf": "leaf-b2"
+    },
+    {
+      "router": "leaf-b2",
+      "plane": "b",
+      "prefix": "10.1.1.0/31",
+      "protocol": "bgp",
+      "min_next_hops": 2,
+      "endpoint_node": "gpu01",
+      "attached_leaf": "leaf-b1"
+    },
+    {
+      "router": "leaf-b2",
+      "plane": "b",
+      "prefix": "10.1.1.2/31",
+      "protocol": "bgp",
+      "min_next_hops": 2,
+      "endpoint_node": "gpu02",
+      "attached_leaf": "leaf-b1"
+    },
+    {
+      "router": "leaf-b2",
+      "plane": "b",
+      "prefix": "10.1.1.4/31",
+      "protocol": "connected",
+      "min_next_hops": 0,
+      "endpoint_node": "gpu03",
+      "attached_leaf": "leaf-b2"
+    },
+    {
+      "router": "leaf-b2",
+      "plane": "b",
+      "prefix": "10.1.1.6/31",
+      "protocol": "connected",
+      "min_next_hops": 0,
+      "endpoint_node": "gpu04",
+      "attached_leaf": "leaf-b2"
+    },
+    {
+      "router": "spine-b1",
+      "plane": "b",
+      "prefix": "10.1.1.0/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu01",
+      "attached_leaf": "leaf-b1"
+    },
+    {
+      "router": "spine-b1",
+      "plane": "b",
+      "prefix": "10.1.1.2/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu02",
+      "attached_leaf": "leaf-b1"
+    },
+    {
+      "router": "spine-b1",
+      "plane": "b",
+      "prefix": "10.1.1.4/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu03",
+      "attached_leaf": "leaf-b2"
+    },
+    {
+      "router": "spine-b1",
+      "plane": "b",
+      "prefix": "10.1.1.6/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu04",
+      "attached_leaf": "leaf-b2"
+    },
+    {
+      "router": "spine-b2",
+      "plane": "b",
+      "prefix": "10.1.1.0/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu01",
+      "attached_leaf": "leaf-b1"
+    },
+    {
+      "router": "spine-b2",
+      "plane": "b",
+      "prefix": "10.1.1.2/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu02",
+      "attached_leaf": "leaf-b1"
+    },
+    {
+      "router": "spine-b2",
+      "plane": "b",
+      "prefix": "10.1.1.4/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu03",
+      "attached_leaf": "leaf-b2"
+    },
+    {
+      "router": "spine-b2",
+      "plane": "b",
+      "prefix": "10.1.1.6/31",
+      "protocol": "bgp",
+      "min_next_hops": 1,
+      "endpoint_node": "gpu04",
+      "attached_leaf": "leaf-b2"
+    }
+  ],
+  "reachability": [
+    {
+      "plane": "a",
+      "source_node": "gpu01",
+      "source_interface": "eth1",
+      "source_vrf": "fabric-a",
+      "source_address": "10.0.1.1",
+      "destination_node": "gpu02",
+      "destination_address": "10.0.1.3"
+    },
+    {
+      "plane": "a",
+      "source_node": "gpu01",
+      "source_interface": "eth1",
+      "source_vrf": "fabric-a",
+      "source_address": "10.0.1.1",
+      "destination_node": "gpu03",
+      "destination_address": "10.0.1.5"
+    },
+    {
+      "plane": "a",
+      "source_node": "gpu01",
+      "source_interface": "eth1",
+      "source_vrf": "fabric-a",
+      "source_address": "10.0.1.1",
+      "destination_node": "gpu04",
+      "destination_address": "10.0.1.7"
+    },
+    {
+      "plane": "a",
+      "source_node": "gpu02",
+      "source_interface": "eth1",
+      "source_vrf": "fabric-a",
+      "source_address": "10.0.1.3",
+      "destination_node": "gpu01",
+      "destination_address": "10.0.1.1"
+    },
+    {
+      "plane": "a",
+      "source_node": "gpu02",
+      "source_interface": "eth1",
+      "source_vrf": "fabric-a",
+      "source_address": "10.0.1.3",
+      "destination_node": "gpu03",
+      "destination_address": "10.0.1.5"
+    },
+    {
+      "plane": "a",
+      "source_node": "gpu02",
+      "source_interface": "eth1",
+      "source_vrf": "fabric-a",
+      "source_address": "10.0.1.3",
+      "destination_node": "gpu04",
+      "destination_address": "10.0.1.7"
+    },
+    {
+      "plane": "a",
+      "source_node": "gpu03",
+      "source_interface": "eth1",
+      "source_vrf": "fabric-a",
+      "source_address": "10.0.1.5",
+      "destination_node": "gpu01",
+      "destination_address": "10.0.1.1"
+    },
+    {
+      "plane": "a",
+      "source_node": "gpu03",
+      "source_interface": "eth1",
+      "source_vrf": "fabric-a",
+      "source_address": "10.0.1.5",
+      "destination_node": "gpu02",
+      "destination_address": "10.0.1.3"
+    },
+    {
+      "plane": "a",
+      "source_node": "gpu03",
+      "source_interface": "eth1",
+      "source_vrf": "fabric-a",
+      "source_address": "10.0.1.5",
+      "destination_node": "gpu04",
+      "destination_address": "10.0.1.7"
+    },
+    {
+      "plane": "a",
+      "source_node": "gpu04",
+      "source_interface": "eth1",
+      "source_vrf": "fabric-a",
+      "source_address": "10.0.1.7",
+      "destination_node": "gpu01",
+      "destination_address": "10.0.1.1"
+    },
+    {
+      "plane": "a",
+      "source_node": "gpu04",
+      "source_interface": "eth1",
+      "source_vrf": "fabric-a",
+      "source_address": "10.0.1.7",
+      "destination_node": "gpu02",
+      "destination_address": "10.0.1.3"
+    },
+    {
+      "plane": "a",
+      "source_node": "gpu04",
+      "source_interface": "eth1",
+      "source_vrf": "fabric-a",
+      "source_address": "10.0.1.7",
+      "destination_node": "gpu03",
+      "destination_address": "10.0.1.5"
+    },
+    {
+      "plane": "b",
+      "source_node": "gpu01",
+      "source_interface": "eth2",
+      "source_vrf": "fabric-b",
+      "source_address": "10.1.1.1",
+      "destination_node": "gpu02",
+      "destination_address": "10.1.1.3"
+    },
+    {
+      "plane": "b",
+      "source_node": "gpu01",
+      "source_interface": "eth2",
+      "source_vrf": "fabric-b",
+      "source_address": "10.1.1.1",
+      "destination_node": "gpu03",
+      "destination_address": "10.1.1.5"
+    },
+    {
+      "plane": "b",
+      "source_node": "gpu01",
+      "source_interface": "eth2",
+      "source_vrf": "fabric-b",
+      "source_address": "10.1.1.1",
+      "destination_node": "gpu04",
+      "destination_address": "10.1.1.7"
+    },
+    {
+      "plane": "b",
+      "source_node": "gpu02",
+      "source_interface": "eth2",
+      "source_vrf": "fabric-b",
+      "source_address": "10.1.1.3",
+      "destination_node": "gpu01",
+      "destination_address": "10.1.1.1"
+    },
+    {
+      "plane": "b",
+      "source_node": "gpu02",
+      "source_interface": "eth2",
+      "source_vrf": "fabric-b",
+      "source_address": "10.1.1.3",
+      "destination_node": "gpu03",
+      "destination_address": "10.1.1.5"
+    },
+    {
+      "plane": "b",
+      "source_node": "gpu02",
+      "source_interface": "eth2",
+      "source_vrf": "fabric-b",
+      "source_address": "10.1.1.3",
+      "destination_node": "gpu04",
+      "destination_address": "10.1.1.7"
+    },
+    {
+      "plane": "b",
+      "source_node": "gpu03",
+      "source_interface": "eth2",
+      "source_vrf": "fabric-b",
+      "source_address": "10.1.1.5",
+      "destination_node": "gpu01",
+      "destination_address": "10.1.1.1"
+    },
+    {
+      "plane": "b",
+      "source_node": "gpu03",
+      "source_interface": "eth2",
+      "source_vrf": "fabric-b",
+      "source_address": "10.1.1.5",
+      "destination_node": "gpu02",
+      "destination_address": "10.1.1.3"
+    },
+    {
+      "plane": "b",
+      "source_node": "gpu03",
+      "source_interface": "eth2",
+      "source_vrf": "fabric-b",
+      "source_address": "10.1.1.5",
+      "destination_node": "gpu04",
+      "destination_address": "10.1.1.7"
+    },
+    {
+      "plane": "b",
+      "source_node": "gpu04",
+      "source_interface": "eth2",
+      "source_vrf": "fabric-b",
+      "source_address": "10.1.1.7",
+      "destination_node": "gpu01",
+      "destination_address": "10.1.1.1"
+    },
+    {
+      "plane": "b",
+      "source_node": "gpu04",
+      "source_interface": "eth2",
+      "source_vrf": "fabric-b",
+      "source_address": "10.1.1.7",
+      "destination_node": "gpu02",
+      "destination_address": "10.1.1.3"
+    },
+    {
+      "plane": "b",
+      "source_node": "gpu04",
+      "source_interface": "eth2",
+      "source_vrf": "fabric-b",
+      "source_address": "10.1.1.7",
+      "destination_node": "gpu03",
+      "destination_address": "10.1.1.5"
+    }
+  ],
+  "isolation": [
+    {
+      "source_plane": "a",
+      "source_vrf": "fabric-a",
+      "destination_plane": "b",
+      "source_nodes": [
+        "gpu01",
+        "gpu02",
+        "gpu03",
+        "gpu04"
+      ],
+      "blocked_endpoint_addresses": [
+        "10.1.1.1",
+        "10.1.1.3",
+        "10.1.1.5",
+        "10.1.1.7"
+      ],
+      "forbidden_route_pools": [
+        "10.1.0.0/16",
+        "10.255.1.0/24"
+      ]
+    },
+    {
+      "source_plane": "b",
+      "source_vrf": "fabric-b",
+      "destination_plane": "a",
+      "source_nodes": [
+        "gpu01",
+        "gpu02",
+        "gpu03",
+        "gpu04"
+      ],
+      "blocked_endpoint_addresses": [
+        "10.0.1.1",
+        "10.0.1.3",
+        "10.0.1.5",
+        "10.0.1.7"
+      ],
+      "forbidden_route_pools": [
+        "10.0.0.0/16",
+        "10.255.0.0/24"
+      ]
+    }
+  ]
+}

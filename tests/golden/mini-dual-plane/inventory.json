@@ -1,0 +1,9 @@
+{
+  "compiler_version": "0.1.0",
+  "fabric_name": "mini-dual-plane",
+  "link_count": 16,
+  "node_count": 12,
+  "schema_version": 1,
+  "site": "aif-lab",
+  "source_revision": "a4736d0373aae95f7ebb83167ef25d1516738b7e959207ee1c14c3c15872ba06"
+}

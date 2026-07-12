@@ -1,0 +1,123 @@
+{
+  "build_hash": "f74c196f35928bd1313d096607a72c2650955950149b46a9d10a36b85a62ad8f",
+  "compiler_version": "0.1.0",
+  "files": [
+    {
+      "path": "configs/endpoints/gpu01/setup.sh",
+      "sha256": "600b19edb1152c5a6cf0615e475907754dc759ae31122c093ef18ad87825add8",
+      "size": 658
+    },
+    {
+      "path": "configs/endpoints/gpu02/setup.sh",
+      "sha256": "3513acd4c0c845e8a8e4642ee423f568d23ee546bf8ebaa95019231ec4601178",
+      "size": 658
+    },
+    {
+      "path": "configs/endpoints/gpu03/setup.sh",
+      "sha256": "e3b05eeec3432fee078578476dd50a903e51691aa7336d5f4c944975a5a4df35",
+      "size": 658
+    },
+    {
+      "path": "configs/endpoints/gpu04/setup.sh",
+      "sha256": "702d37df4246deb616406d07c8cd1d6fed049841e99dafcdc2dcfd7bc5c06f47",
+      "size": 658
+    },
+    {
+      "path": "configs/routers/leaf-a1/daemons",
+      "sha256": "60d2accc53f5dbc31d09420908ee324af43c304ad56c24ac405edc4c87c56361",
+      "size": 68
+    },
+    {
+      "path": "configs/routers/leaf-a1/frr.conf",
+      "sha256": "88dfb23331049284d939d97698b2db6bb0477ff701e9067dd0f16d68508077ae",
+      "size": 771
+    },
+    {
+      "path": "configs/routers/leaf-a2/daemons",
+      "sha256": "60d2accc53f5dbc31d09420908ee324af43c304ad56c24ac405edc4c87c56361",
+      "size": 68
+    },
+    {
+      "path": "configs/routers/leaf-a2/frr.conf",
+      "sha256": "7fe9ea928dd7125c5dd72057f564cad42b2b1fea1eaa6cb132132ee0be54570d",
+      "size": 771
+    },
+    {
+      "path": "configs/routers/leaf-b1/daemons",
+      "sha256": "60d2accc53f5dbc31d09420908ee324af43c304ad56c24ac405edc4c87c56361",
+      "size": 68
+    },
+    {
+      "path": "configs/routers/leaf-b1/frr.conf",
+      "sha256": "307c57040944fc117ff157df7a87c015b42bc3dc940c0c37e38725e58a2ec1a2",
+      "size": 771
+    },
+    {
+      "path": "configs/routers/leaf-b2/daemons",
+      "sha256": "60d2accc53f5dbc31d09420908ee324af43c304ad56c24ac405edc4c87c56361",
+      "size": 68
+    },
+    {
+      "path": "configs/routers/leaf-b2/frr.conf",
+      "sha256": "b4ec0ac87c79f0e94351f9d5bdf04e8bd0f4b28e8c9da86ad59a88fcf60bbae6",
+      "size": 771
+    },
+    {
+      "path": "configs/routers/spine-a1/daemons",
+      "sha256": "60d2accc53f5dbc31d09420908ee324af43c304ad56c24ac405edc4c87c56361",
+      "size": 68
+    },
+    {
+      "path": "configs/routers/spine-a1/frr.conf",
+      "sha256": "6c79284fdbc687184d0c88d67bd3dd5bd0d95c6e05f6a70d4500827b43cfeb24",
+      "size": 630
+    },
+    {
+      "path": "configs/routers/spine-a2/daemons",
+      "sha256": "60d2accc53f5dbc31d09420908ee324af43c304ad56c24ac405edc4c87c56361",
+      "size": 68
+    },
+    {
+      "path": "configs/routers/spine-a2/frr.conf",
+      "sha256": "915b827021e390f46c43d6fdef8eb6e76fa0caa3d0e269db2e9b6d0d4c6a4136",
+      "size": 630
+    },
+    {
+      "path": "configs/routers/spine-b1/daemons",
+      "sha256": "60d2accc53f5dbc31d09420908ee324af43c304ad56c24ac405edc4c87c56361",
+      "size": 68
+    },
+    {
+      "path": "configs/routers/spine-b1/frr.conf",
+      "sha256": "03474e8bb647aa741cc936753bad2cedcfbf4839c88ddf975626866a98977405",
+      "size": 630
+    },
+    {
+      "path": "configs/routers/spine-b2/daemons",
+      "sha256": "60d2accc53f5dbc31d09420908ee324af43c304ad56c24ac405edc4c87c56361",
+      "size": 68
+    },
+    {
+      "path": "configs/routers/spine-b2/frr.conf",
+      "sha256": "690c3e52f1cedd6c54914f03b43f89500debf8b45152e004f350ff800430e8d3",
+      "size": 630
+    },
+    {
+      "path": "expected-state.json",
+      "sha256": "085e01852a9a3bd6ac2780290d61bee130df8e9e4443f242d820d342bd6e0ee4",
+      "size": 17355
+    },
+    {
+      "path": "inventory.json",
+      "sha256": "c78cdc0ac91f31746a7d7ab5787c7ce9657987dd77a2d7adb242f71654f7362b",
+      "size": 243
+    },
+    {
+      "path": "topology.clab.yml",
+      "sha256": "ff828ca04372e93e4e21fc77b7b191ce68333e059118f1a591a5f2b92b5cacd4",
+      "size": 5614
+    }
+  ],
+  "schema_version": 1,
+  "source_revision": "a4736d0373aae95f7ebb83167ef25d1516738b7e959207ee1c14c3c15872ba06"
+}

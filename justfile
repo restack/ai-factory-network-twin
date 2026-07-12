@@ -44,6 +44,12 @@ seed-smoke:
 validate site="aif-lab" profile="config/policies/mini-dual-plane.yaml":
     uv run aftwin validate --site {{site}} --profile {{profile}}
 
+compile site="aif-lab":
+    uv run aftwin compile --site {{site}}
+
+endpoint-image:
+    docker build -t aftwin-endpoint:0.1.0 deploy/endpoint
+
 test-netbox: netbox-up
     NETBOX_URL=http://localhost:8000 \
     NETBOX_TOKEN=nbt_aftwindev001.0123456789abcdef0123456789abcdef01234567 \
