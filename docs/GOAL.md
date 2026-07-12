@@ -33,13 +33,14 @@ Verify this baseline rather than assuming it remains unchanged:
 
 - M0 repository scaffolding, M1 NetBox fixtures/adapter, M2 static policy
   engine, M3 deterministic compiler, M4 deploy/runtime verification, and M5
-  reversible failure scenarios are complete.
+  reversible failure scenarios are complete and merged.
 - The repository includes pinned local NetBox, versioned `smoke` and
   `mini-dual-plane` fixtures, idempotent seeding, deterministic snapshots,
   normalized domain/graph models, explicit policy profiles, stable rule IDs,
   human/JSON reports, and live NetBox integration tests.
-- The remaining expected slice is the clean-room demo, documentation/DoD audit,
-  and final green PR merge.
+- The clean-room demo, documentation/DoD audit, package build, privileged local
+  integration, final green CI, and PR merges have all completed. Any post-MVP
+  expansion requires a new explicit goal.
 
 ### Execution Loop
 
