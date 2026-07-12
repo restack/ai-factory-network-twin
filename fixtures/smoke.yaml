@@ -38,7 +38,7 @@ devices:
         role: uplink
         plane: a
         addresses: [10.0.0.1/31]
-      - name: eth2
+      - name: eth3
         role: host
         plane: a
         addresses: [10.0.1.0/31]
@@ -56,7 +56,7 @@ links:
     b: {device: leaf-a1, interface: eth1}
     plane: a
     kind: fabric
-  - a: {device: leaf-a1, interface: eth2}
+  - a: {device: leaf-a1, interface: eth3}
     b: {device: gpu01, interface: eth1}
     plane: a
     kind: host

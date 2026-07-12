@@ -9,6 +9,11 @@ just netbox-up
 just seed
 ```
 
+The default seed is `fixtures/mini-dual-plane.yaml`; run `just seed-smoke` for
+the minimal development fixture. Both commands are idempotent, and the smoke
+fixture is a strict subset of the golden fixture so they can be applied in
+sequence.
+
 Open <http://localhost:8000> and sign in with `admin` / `admin`.
 
 The fixed API token is a v2 token used only by this local fixture environment.

@@ -1,4 +1,9 @@
+from pathlib import Path
+
+import pytest
+
 from aftwin.domain.enums import InterfaceRole, LinkKind, NodeRole
+from aftwin.errors import NetBoxOperationError
 from aftwin.netbox.adapter import NetBoxAdapter
 
 
@@ -11,6 +16,7 @@ def test_normalize_stored_netbox_shape() -> None:
                 "name": "spine-a1",
                 "role": {"slug": "fabric-spine"},
                 "platform": {"slug": "frr"},
+                "tags": [{"slug": "ai-fabric"}],
                 "custom_fields": {"fabric_plane": {"value": "a"}, "bgp_asn": {"id": 50}},
             },
             {
@@ -18,6 +24,7 @@ def test_normalize_stored_netbox_shape() -> None:
                 "name": "leaf-a1",
                 "role": {"slug": "fabric-leaf"},
                 "platform": {"slug": "frr"},
+                "tags": [{"slug": "ai-fabric"}],
                 "custom_fields": {"fabric_plane": {"value": "a"}, "bgp_asn": {"id": 51}},
             },
         ],
@@ -61,6 +68,7 @@ def test_normalize_stored_netbox_shape() -> None:
             }
         ],
         "asns": [{"id": 50, "asn": 65001}, {"id": 51, "asn": 65101}],
+        "tags": [],
     }
 
     fabric = NetBoxAdapter.normalize(snapshot)
@@ -69,5 +77,40 @@ def test_normalize_stored_netbox_shape() -> None:
     assert fabric.nodes[0].role is NodeRole.LEAF
     assert fabric.nodes[1].asn == 65001
     assert fabric.nodes[1].loopback is not None
+    assert fabric.nodes[1].tags == ("ai-fabric",)
     assert fabric.nodes[1].interfaces[0].role is InterfaceRole.DOWNLINK
     assert fabric.links[0].kind is LinkKind.FABRIC
+
+
+def test_snapshot_hash_matches_normalized_source_revision(tmp_path: Path) -> None:
+    snapshot: dict[str, object] = {
+        "site": {"id": 1, "slug": "lab"},
+        "devices": [],
+        "interfaces": [],
+        "cables": [],
+        "asns": [],
+        "device_roles": [],
+        "platforms": [],
+        "tags": [],
+    }
+
+    revision = NetBoxAdapter.save_snapshot(snapshot, tmp_path / "netbox.json")
+
+    assert NetBoxAdapter.normalize(snapshot).source_revision == revision
+    assert (tmp_path / "netbox.json").read_bytes().endswith(b"\n")
+
+
+def test_malformed_cable_returns_structured_error() -> None:
+    snapshot: dict[str, object] = {
+        "site": {"id": 1, "slug": "lab"},
+        "devices": [],
+        "interfaces": [],
+        "cables": [{"id": 99, "a_terminations": [], "b_terminations": []}],
+        "asns": [],
+        "device_roles": [],
+        "platforms": [],
+        "tags": [],
+    }
+
+    with pytest.raises(NetBoxOperationError, match="must have one a termination"):
+        NetBoxAdapter.normalize(snapshot)

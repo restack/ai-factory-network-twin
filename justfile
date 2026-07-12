@@ -35,8 +35,11 @@ netbox-down:
 netbox-reset:
     docker compose -f deploy/netbox/docker-compose.yml down --volumes
 
-seed fixture="fixtures/smoke.yaml":
+seed fixture="fixtures/mini-dual-plane.yaml":
     uv run aftwin seed --fixture {{fixture}}
+
+seed-smoke:
+    uv run aftwin seed --fixture fixtures/smoke.yaml
 
 test-netbox: netbox-up
     NETBOX_URL=http://localhost:8000 \
