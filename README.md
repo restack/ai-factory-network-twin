@@ -2,17 +2,19 @@
 
 NetBox-driven AI cluster network digital twin and validation lab.
 
-The repository currently contains the M1 NetBox foundation and M2 static policy
-engine: versioned smoke and `mini-dual-plane` fixtures, an idempotent seeder, a
-read-only adapter, typed domain/graph models, explicit policy profiles, stable
-rule IDs, and human/JSON validation reports. Compilation and runtime verification are planned in
-[`PLANNING.md`](PLANNING.md).
+The repository currently contains the M1 NetBox foundation, M2 static policy
+engine, and M3 deterministic compiler. It produces a Containerlab topology,
+FRR configurations, Linux endpoint VRF setup, expected runtime state, inventory,
+and a content-addressed manifest from validated NetBox intent. Deployment and
+runtime verification are the next milestone in [`PLANNING.md`](PLANNING.md).
 
 ## Requirements
 
 - Python 3.12 or newer
 - [uv](https://docs.astral.sh/uv/)
 - [just](https://just.systems/)
+- Docker (for the local NetBox environment and endpoint image)
+- Containerlab 0.77.0 (to validate or later deploy the generated topology)
 
 ## Start
 
@@ -32,12 +34,18 @@ just netbox-up
 just seed
 just seed  # creates no duplicates
 just validate
+just compile
 just test-netbox
 just netbox-down
 ```
 
 `just seed` loads the golden `mini-dual-plane` fixture. Use `just seed-smoke`
 for the smaller one-spine/one-leaf development slice.
+
+`just compile` writes deterministic artifacts to `build/aif-lab/`. Repeating
+the command with unchanged source produces the same `manifest.json` build hash.
+The local endpoint image required by the generated topology can be prepared
+with `just endpoint-image`; it is not deployed until M4.
 
 The Compose credentials are public development defaults and must never be used
 outside the local fixture environment. See

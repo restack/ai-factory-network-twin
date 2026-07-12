@@ -12,7 +12,8 @@
 - **M0:** Complete and merged
 - **M1:** Complete
 - **M2:** Complete
-- **Next:** M3 deterministic compiler
+- **M3:** Complete locally; pending PR merge
+- **Next:** M4 deploy and runtime verification
 
 ## 1. Decision Summary
 

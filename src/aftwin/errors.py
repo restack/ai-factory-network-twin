@@ -96,3 +96,15 @@ class SourceValidationError(AftwinError):
             message=f"NetBox source validation failed: {reason}",
             exit_code=ExitCode.SOURCE_VALIDATION,
         )
+
+
+class CompilationError(AftwinError):
+    """Validated intent could not be compiled into deployable artifacts."""
+
+    def __init__(self, reason: str, *, details: dict[str, Any] | None = None) -> None:
+        super().__init__(
+            code="compilation_failed",
+            message=f"Compilation failed: {reason}",
+            exit_code=ExitCode.COMPILE,
+            details=details or {},
+        )

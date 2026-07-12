@@ -10,8 +10,10 @@ from pydantic import ValidationError
 from yaml import YAMLError
 
 from aftwin import __version__
+from aftwin.compiler.compiler import compile_fabric, load_platform_map
 from aftwin.errors import (
     AftwinError,
+    CompilationError,
     ExitCode,
     FixtureError,
     NetBoxOperationError,
@@ -102,9 +104,54 @@ def validate(
 
 @app.command
 def compile(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
-    """Compile topology and configuration artifacts (planned for M3)."""
-    del site, output
-    _pending("compile", "M3")
+    """Fetch, validate, and compile topology and configuration artifacts."""
+    settings = Settings()
+    if settings.netbox_token is None:
+        raise NetBoxOperationError("authenticate", "NETBOX_TOKEN is not configured")
+    profile_path = Path("config/policies/mini-dual-plane.yaml")
+    platform_map_path = Path("config/platform-map.yaml")
+    try:
+        policy_profile = load_policy_profile(profile_path)
+    except (OSError, ValidationError, YAMLError) as error:
+        raise PolicyProfileError(str(profile_path), str(error)) from error
+
+    adapter = NetBoxAdapter(NetBoxClient(settings.netbox_url, settings.netbox_token))
+    snapshot = adapter.fetch_site(site)
+    site_dir = settings.build_dir / site
+    adapter.save_snapshot(snapshot, site_dir / "source" / "netbox.json")
+    try:
+        fabric = adapter.normalize(snapshot)
+    except NetBoxOperationError as error:
+        raise SourceValidationError(error.message) from error
+    report = PolicyEngine().validate(fabric, policy_profile)
+    report_path = site_dir / "reports" / "static-validation.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(report.to_json(), encoding="utf-8", newline="\n")
+    if report.failed:
+        print(report.to_json() if output == "json" else report.render_human(), end="")
+        raise SystemExit(ExitCode.SOURCE_VALIDATION)
+    try:
+        platform_map = load_platform_map(platform_map_path)
+        result = compile_fabric(fabric, platform_map, policy_profile, site_dir)
+    except (OSError, ValidationError, YAMLError, TypeError, ValueError) as error:
+        raise CompilationError(str(error)) from error
+    payload = {
+        "build_hash": result.build_hash,
+        "fabric": result.fabric,
+        "links": result.link_count,
+        "nodes": result.node_count,
+        "output_dir": result.output_dir.as_posix(),
+        "site": result.site,
+        "static_validation": "PASS",
+    }
+    if output == "json":
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        print(
+            f"Static validation: PASS\nNodes compiled: {result.node_count}\n"
+            f"Links compiled: {result.link_count}\nBuild hash: {result.build_hash}\n"
+            f"Output: {result.output_dir.as_posix()}"
+        )
 
 
 @app.command
