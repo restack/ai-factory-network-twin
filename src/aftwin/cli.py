@@ -37,7 +37,9 @@ def _pending(command: str, milestone: str) -> NoReturn:
 
 
 @app.command
-def seed(fixture: Path = Path("fixtures/smoke.yaml"), *, output: OutputFormat = "human") -> None:
+def seed(
+    fixture: Path = Path("fixtures/mini-dual-plane.yaml"), *, output: OutputFormat = "human"
+) -> None:
     """Idempotently seed a development NetBox fixture."""
     settings = Settings()
     if settings.netbox_token is None:

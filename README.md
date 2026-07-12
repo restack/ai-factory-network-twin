@@ -3,8 +3,9 @@
 NetBox-driven AI cluster network digital twin and validation lab.
 
 The repository currently contains the M1 NetBox foundation: the Python package
-and CLI contract, a pinned local NetBox environment, a versioned smoke fixture,
-an idempotent seeder, a read-only adapter, and typed fabric domain models.
+and CLI contract, a pinned local NetBox environment, versioned smoke and
+`mini-dual-plane` fixtures, an idempotent seeder, a read-only adapter, and typed
+fabric domain models.
 Network policy, compilation, and runtime verification are planned in
 [`PLANNING.md`](PLANNING.md).
 
@@ -24,7 +25,7 @@ just check
 
 Copy `.env.example` to `.env` before using commands that connect to NetBox.
 
-## Local NetBox smoke workflow
+## Local NetBox fixture workflow
 
 ```bash
 cp .env.example .env
@@ -35,6 +36,12 @@ just test-netbox
 just netbox-down
 ```
 
+`just seed` loads the golden `mini-dual-plane` fixture. Use `just seed-smoke`
+for the smaller one-spine/one-leaf development slice.
+
 The Compose credentials are public development defaults and must never be used
 outside the local fixture environment. See
 [`deploy/netbox/README.md`](deploy/netbox/README.md) for lifecycle details.
+
+This project validates network intent and functional control-plane behavior. It
+does not simulate GPU, RDMA, switch ASIC, buffering, or line-rate performance.

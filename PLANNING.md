@@ -1,11 +1,17 @@
 # AI Factory Network Twin — Planning
 
-- **Status:** Draft v0.2
+- **Status:** Draft v0.3
 - **Working repository name:** `ai-factory-network-twin`
 - **CLI name:** `aftwin`
 - **Owner:** Aaron Yoon
 - **Primary language:** Python 3.12+
 - **Initial target:** A local Linux host with Docker and Containerlab
+
+### Implementation Status
+
+- **M0:** Complete and merged
+- **M1:** Complete
+- **Next:** M2 static policy engine
 
 ## 1. Decision Summary
 

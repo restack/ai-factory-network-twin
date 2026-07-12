@@ -31,6 +31,7 @@ class Node(DomainModel):
     plane: FabricPlane
     asn: int | None = Field(default=None, ge=1, le=4_294_967_295)
     loopback: IPv4Interface | None = None
+    tags: tuple[str, ...] = ()
     interfaces: tuple[Interface, ...] = ()
 
 
