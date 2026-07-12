@@ -49,3 +49,27 @@ class NotImplementedCommandError(AftwinError):
             exit_code=ExitCode.CONFIGURATION,
             details={"command": command, "milestone": milestone},
         )
+
+
+class FixtureError(AftwinError):
+    """A fixture could not be loaded or validated."""
+
+    def __init__(self, path: str, reason: str) -> None:
+        super().__init__(
+            code="invalid_fixture",
+            message=f"Fixture '{path}' is invalid: {reason}",
+            exit_code=ExitCode.SOURCE_VALIDATION,
+            details={"path": path},
+        )
+
+
+class NetBoxOperationError(AftwinError):
+    """A sanitized NetBox API failure."""
+
+    def __init__(self, operation: str, reason: str) -> None:
+        super().__init__(
+            code="netbox_operation_failed",
+            message=f"NetBox {operation} failed: {reason}",
+            exit_code=ExitCode.CONFIGURATION,
+            details={"operation": operation},
+        )

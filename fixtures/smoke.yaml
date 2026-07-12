@@ -1,0 +1,62 @@
+schema_version: 1
+name: smoke
+site:
+  name: AI Factory Lab
+  slug: aif-lab
+tags:
+  - ai-fabric
+  - digital-twin
+  - fixture
+devices:
+  - name: spine-a1
+    role: fabric-spine
+    platform: frr
+    plane: a
+    asn: 65001
+    interfaces:
+      - name: lo
+        role: loopback
+        plane: a
+        type: virtual
+        addresses: [10.255.0.1/32]
+      - name: eth1
+        role: downlink
+        plane: a
+        addresses: [10.0.0.0/31]
+  - name: leaf-a1
+    role: fabric-leaf
+    platform: frr
+    plane: a
+    asn: 65101
+    interfaces:
+      - name: lo
+        role: loopback
+        plane: a
+        type: virtual
+        addresses: [10.255.0.101/32]
+      - name: eth1
+        role: uplink
+        plane: a
+        addresses: [10.0.0.1/31]
+      - name: eth2
+        role: host
+        plane: a
+        addresses: [10.0.1.0/31]
+  - name: gpu01
+    role: compute
+    platform: linux-endpoint
+    plane: shared
+    interfaces:
+      - name: eth1
+        role: host
+        plane: a
+        addresses: [10.0.1.1/31]
+links:
+  - a: {device: spine-a1, interface: eth1}
+    b: {device: leaf-a1, interface: eth1}
+    plane: a
+    kind: fabric
+  - a: {device: leaf-a1, interface: eth2}
+    b: {device: gpu01, interface: eth1}
+    plane: a
+    kind: host
