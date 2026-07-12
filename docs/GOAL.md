@@ -32,13 +32,14 @@ Create and pursue a persistent goal with this objective:
 Verify this baseline rather than assuming it remains unchanged:
 
 - M0 repository scaffolding, M1 NetBox fixtures/adapter, M2 static policy
-  engine, M3 deterministic compiler, and M4 deploy/runtime verification are
-  complete.
+  engine, M3 deterministic compiler, M4 deploy/runtime verification, and M5
+  reversible failure scenarios are complete.
 - The repository includes pinned local NetBox, versioned `smoke` and
   `mini-dual-plane` fixtures, idempotent seeding, deterministic snapshots,
   normalized domain/graph models, explicit policy profiles, stable rule IDs,
   human/JSON reports, and live NetBox integration tests.
-- The next expected slice is M5 failure scenarios and recovery validation.
+- The remaining expected slice is the clean-room demo, documentation/DoD audit,
+  and final green PR merge.
 
 ### Execution Loop
 

@@ -11,6 +11,8 @@ from aftwin.policy.profile import load_policy_profile
 from aftwin.runtime.containerlab import Containerlab
 from aftwin.runtime.executor import SubprocessExecutor
 from aftwin.runtime.lifecycle import LabLifecycle
+from aftwin.scenario.models import load_scenario
+from aftwin.scenario.runner import ScenarioRunner
 from aftwin.verify.verifier import RuntimeVerifier
 
 pytestmark = pytest.mark.containerlab
@@ -38,6 +40,13 @@ def test_golden_lab_deploy_verify_and_destroy(tmp_path: Path) -> None:
         assert deployed.inspection.running
         verification = RuntimeVerifier(containerlab).verify(site_dir)
         assert verification.passed, verification.render_human()
+        runner = ScenarioRunner(containerlab, RuntimeVerifier(containerlab))
+        for scenario_path in (
+            Path("scenarios/link-failure.yaml"),
+            Path("scenarios/spine-failure.yaml"),
+        ):
+            scenario = runner.run(site_dir, load_scenario(scenario_path))
+            assert scenario.passed, scenario.render_human()
     finally:
         destroyed = lifecycle.destroy(site_dir)
         assert not destroyed.inspection.running

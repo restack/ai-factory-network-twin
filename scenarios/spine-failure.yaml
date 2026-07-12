@@ -1,0 +1,18 @@
+schema_version: 1
+name: single-spine-failure
+description: Verify both fabric planes remain reachable while one Plane A spine is unavailable.
+failure:
+  type: spine-down
+  target:
+    node: spine-a1
+expected:
+  surviving_planes:
+    - a
+    - b
+  probes:
+    - plane: a
+      source_node: gpu01
+      destination_node: gpu03
+    - plane: b
+      source_node: gpu01
+      destination_node: gpu03
