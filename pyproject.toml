@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ai-factory-network-twin"
+version = "0.1.0"
+description = "NetBox-driven AI cluster network digital twin and validation lab"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "Aaron Yoon" }]
+dependencies = [
+  "cyclopts>=3.0",
+  "pydantic>=2.10",
+  "pydantic-settings>=2.7",
+]
+
+[project.scripts]
+aftwin = "aftwin.cli:main"
+
+[dependency-groups]
+dev = [
+  "pyright>=1.1",
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+  "ruff>=0.9",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aftwin"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers -q"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["aftwin"]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
