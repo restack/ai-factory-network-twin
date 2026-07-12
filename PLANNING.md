@@ -11,7 +11,8 @@
 
 - **M0:** Complete and merged
 - **M1:** Complete
-- **Next:** M2 static policy engine
+- **M2:** Complete
+- **Next:** M3 deterministic compiler
 
 ## 1. Decision Summary
 

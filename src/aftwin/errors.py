@@ -73,3 +73,26 @@ class NetBoxOperationError(AftwinError):
             exit_code=ExitCode.CONFIGURATION,
             details={"operation": operation},
         )
+
+
+class PolicyProfileError(AftwinError):
+    """A Git-owned policy profile is invalid."""
+
+    def __init__(self, path: str, reason: str) -> None:
+        super().__init__(
+            code="invalid_policy_profile",
+            message=f"Policy profile '{path}' is invalid: {reason}",
+            exit_code=ExitCode.SOURCE_VALIDATION,
+            details={"path": path},
+        )
+
+
+class SourceValidationError(AftwinError):
+    """NetBox source data could not be normalized safely."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(
+            code="source_validation_failed",
+            message=f"NetBox source validation failed: {reason}",
+            exit_code=ExitCode.SOURCE_VALIDATION,
+        )

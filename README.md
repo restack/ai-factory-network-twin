@@ -2,11 +2,10 @@
 
 NetBox-driven AI cluster network digital twin and validation lab.
 
-The repository currently contains the M1 NetBox foundation: the Python package
-and CLI contract, a pinned local NetBox environment, versioned smoke and
-`mini-dual-plane` fixtures, an idempotent seeder, a read-only adapter, and typed
-fabric domain models.
-Network policy, compilation, and runtime verification are planned in
+The repository currently contains the M1 NetBox foundation and M2 static policy
+engine: versioned smoke and `mini-dual-plane` fixtures, an idempotent seeder, a
+read-only adapter, typed domain/graph models, explicit policy profiles, stable
+rule IDs, and human/JSON validation reports. Compilation and runtime verification are planned in
 [`PLANNING.md`](PLANNING.md).
 
 ## Requirements
@@ -32,6 +31,7 @@ cp .env.example .env
 just netbox-up
 just seed
 just seed  # creates no duplicates
+just validate
 just test-netbox
 just netbox-down
 ```

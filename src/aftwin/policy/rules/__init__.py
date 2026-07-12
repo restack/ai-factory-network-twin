@@ -1,1 +1,1 @@
-"""AI fabric invariant rules (M2)."""
+"""AI fabric invariant rules."""

@@ -41,6 +41,9 @@ seed fixture="fixtures/mini-dual-plane.yaml":
 seed-smoke:
     uv run aftwin seed --fixture fixtures/smoke.yaml
 
+validate site="aif-lab" profile="config/policies/mini-dual-plane.yaml":
+    uv run aftwin validate --site {{site}} --profile {{profile}}
+
 test-netbox: netbox-up
     NETBOX_URL=http://localhost:8000 \
     NETBOX_TOKEN=nbt_aftwindev001.0123456789abcdef0123456789abcdef01234567 \

@@ -1,5 +1,6 @@
 """Versioned, declarative NetBox development fixtures."""
 
+import hashlib
 from ipaddress import IPv4Interface
 from pathlib import Path
 
@@ -7,6 +8,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from aftwin.domain.enums import FabricPlane, InterfaceRole, LinkKind, NodeRole
+from aftwin.domain.models import Fabric, Interface, Link, LinkEndpoint, Node
 
 
 class FixtureModel(BaseModel):
@@ -82,3 +84,66 @@ def load_fixture(path: Path) -> NetBoxFixture:
     with path.open(encoding="utf-8") as stream:
         data: object = yaml.safe_load(stream)
     return NetBoxFixture.model_validate(data)
+
+
+def fixture_to_fabric(fixture: NetBoxFixture) -> Fabric:
+    """Convert a validated Git fixture to the same domain model as NetBox."""
+    nodes: list[Node] = []
+    for device in fixture.devices:
+        interfaces = tuple(
+            Interface(
+                name=interface.name,
+                role=interface.role,
+                plane=interface.plane,
+                addresses=interface.addresses,
+            )
+            for interface in sorted(device.interfaces, key=lambda item: item.name)
+        )
+        loopback = next(
+            (
+                address
+                for interface in interfaces
+                if interface.role is InterfaceRole.LOOPBACK
+                for address in interface.addresses
+            ),
+            None,
+        )
+        nodes.append(
+            Node(
+                name=device.name,
+                role=device.role,
+                platform=device.platform,
+                plane=device.plane,
+                asn=device.asn,
+                loopback=loopback,
+                tags=tuple(sorted(fixture.tags)),
+                interfaces=interfaces,
+            )
+        )
+    links = tuple(
+        Link(
+            endpoint_a=LinkEndpoint(node=link.a.device, interface=link.a.interface),
+            endpoint_b=LinkEndpoint(node=link.b.device, interface=link.b.interface),
+            plane=link.plane,
+            kind=link.kind,
+        )
+        for link in sorted(
+            fixture.links,
+            key=lambda item: (
+                item.a.device,
+                item.a.interface,
+                item.b.device,
+                item.b.interface,
+            ),
+        )
+    )
+    revision = hashlib.sha256(
+        (fixture.model_dump_json(exclude_none=False) + "\n").encode()
+    ).hexdigest()
+    return Fabric(
+        name=fixture.name,
+        site=fixture.site.slug,
+        nodes=tuple(sorted(nodes, key=lambda item: item.name)),
+        links=links,
+        source_revision=revision,
+    )

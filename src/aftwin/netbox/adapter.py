@@ -8,7 +8,7 @@ from typing import Protocol, cast
 
 from aftwin.domain.enums import FabricPlane, InterfaceRole, LinkKind, NodeRole
 from aftwin.domain.models import Fabric, Interface, Link, LinkEndpoint, Node
-from aftwin.errors import NetBoxOperationError
+from aftwin.errors import NetBoxOperationError, SourceValidationError
 
 JsonObject = dict[str, object]
 
@@ -89,7 +89,7 @@ class NetBoxAdapter:
         """Fetch the raw objects needed to reconstruct one site."""
         site = self.client.one("dcim.sites", slug=site_slug)
         if site is None:
-            raise NetBoxOperationError("fetch site", f"site '{site_slug}' was not found")
+            raise SourceValidationError(f"site '{site_slug}' was not found")
         site_id = _integer(site.get("id"))
         devices = self.client.list("dcim.devices", site_id=site_id)
         interfaces: list[JsonObject] = []
