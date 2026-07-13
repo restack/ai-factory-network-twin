@@ -48,14 +48,26 @@ just netbox-down
 ```
 
 `just seed` loads the golden `mini-dual-plane` fixture. Use `just seed-smoke`
-for the smaller one-spine/one-leaf development slice.
+for the smaller one-spine/one-leaf development slice. Seeding refuses a
+non-loopback `NETBOX_URL` unless the operator explicitly passes
+`aftwin seed --allow-nonlocal`; the bundled Compose service itself listens only
+on `127.0.0.1:8000`.
+
+When `--site` is omitted, source and lifecycle commands use `AFTWIN_SITE` from
+the environment. `validate`, `compile`, and `lab up` can narrow that site's
+devices with `--tag <slug>`. Source snapshots are explicit allowlists of fields
+required for normalization, so unrelated NetBox fields are not persisted.
 
 `just compile` writes deterministic artifacts to `build/aif-lab/`. Repeating
 the command with unchanged source produces the same `manifest.json` build hash.
 The local endpoint image required by the generated topology can be prepared
-with `just endpoint-image`. `just lab-up` deploys only a statically validated
-build. `just verify` writes `build/aif-lab/reports/runtime-verification.json`,
-and `just lab-down` removes only the matching lab and its runtime directory.
+with `just endpoint-image`. Local and remote runtime images use explicit
+version tags, and the platform-map validator rejects unversioned or `latest`
+references. Compatibility is proven by the Containerlab and NetBox integration
+tests. `just lab-up` deploys only a statically validated, manifest-consistent
+build. `just verify` writes
+`build/aif-lab/reports/runtime-verification.json`, and `just lab-down` removes
+only the matching lab and its runtime directory.
 
 `just scenario-link` disables one Plane A leaf-to-spine interface and proves
 that endpoint connectivity survives through the alternate spine.
@@ -63,6 +75,9 @@ that endpoint connectivity survives through the alternate spine.
 proves the plane remains reachable. Both commands restore every interface in a
 `finally` path and require the full BGP/route/ECMP verifier to pass afterward.
 Scenario evidence is written below `build/aif-lab/reports/scenarios/`.
+Each report identifies its scenario revision, source revision, and build hash.
+Recompilation clears reports from an older build so stale evidence cannot be
+mistaken for current results.
 
 Run the privileged local Containerlab integration suite with
 `just test-containerlab`. The test always destroys its ephemeral lab in a
@@ -76,7 +91,7 @@ With Docker, Containerlab 0.77.0, `uv`, and `just` installed, run:
 just demo
 ```
 
-The demo starts the pinned local NetBox environment, builds the endpoint image,
+The demo starts the versioned local NetBox environment, builds the endpoint image,
 seeds and validates the fixture, compiles and deploys the lab, runs baseline
 verification and both failure scenarios, verifies recovery, then destroys the
 lab and stops NetBox. A trap performs scoped cleanup if any step fails. The

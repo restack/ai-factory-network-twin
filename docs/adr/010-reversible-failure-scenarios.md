@@ -31,6 +31,10 @@ and bounded full BGP/route/ECMP recovery. A scenario passes only if the fault wa
 observed, connectivity survived, all interfaces were restored, and the complete
 runtime verifier recovered.
 
+Reports record the scenario revision, source revision, and compiler build hash.
+Compilation removes scenario reports from the previous build before writing a
+new manifest so evidence cannot outlive the artifact identity it describes.
+
 ## Consequences
 
 - Scenarios are reproducible YAML contracts in `scenarios/`.

@@ -15,22 +15,27 @@ Use Containerlab 0.77.0 as the tested topology parser and runtime version.
 Represent both FRR routers and Linux compute endpoints with Containerlab's
 generic `linux` kind.
 
-Routers use the official FRR 10.3.4 Quay image pinned by its multi-architecture
-manifest digest. Each router receives read-only `daemons` and `frr.conf` binds.
+Routers use the official FRR 10.3.4 Quay image by explicit version tag. Each
+router receives read-only `daemons` and `frr.conf` binds.
 The generated daemon file enables BGP and the generated FRR configuration
 contains only explicit loopback and fabric advertisements; it does not use
 `redistribute connected`.
 
 Compute endpoints use the project-owned `aftwin-endpoint:0.1.0` image. Its
-Dockerfile pins the Alpine 3.22 base digest and package versions. Containerlab
-runs a read-only generated setup script after data links exist; that script
-creates per-plane VRFs, assigns interfaces, and installs a static default route
-for each plane.
+Dockerfile uses the Alpine 3.22 compatibility line and installs the distribution
+versions of `iproute2` and `iputils`. Containerlab runs a read-only generated
+setup script after data links exist; that script creates per-plane VRFs, assigns
+interfaces, and installs a static default route for each plane.
 
 The Git-owned mapping is versioned in `config/platform-map.yaml`. Generated
 topology, configuration, expected state, inventory, and manifest files use
 stable ordering and final newlines. The build hash covers compiler pipeline
 outputs and excludes Containerlab runtime working directories.
+
+Both remote and local images must use explicit version tags. Unversioned and
+`latest` references are rejected by the platform-map validator. Image
+compatibility is treated as an integration contract and is verified by the
+Containerlab and NetBox suites rather than by content-digest enforcement.
 
 The topology declares the dedicated `aftwin-mgmt` Docker network with pinned
 IPv4 and IPv6 subnets. This avoids dependence on Containerlab's default
@@ -40,11 +45,11 @@ management subnet, which commonly overlaps unrelated local Docker projects.
 
 - Router startup does not need a custom wrapper or mutable configuration bind.
 - Configuration changes require recompilation and redeployment.
-- The endpoint image must be built locally before the first M4 deployment.
+- The versioned endpoint image must be built locally before deployment.
 - Runtime privileges remain Containerlab's concern; generated nodes declare
   only the forwarding and reverse-path-filter sysctls required by the lab.
-- Image or package upgrades require an intentional platform-map, Dockerfile,
-  golden-output, and integration-test update.
+- Version-line upgrades require an intentional platform-map or Dockerfile
+  change plus golden-output and integration-test review.
 
 ## References
 

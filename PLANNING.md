@@ -86,7 +86,7 @@ Runtime verification
 
 ### 4.1 MVP Goals
 
-- Select devices and connections by NetBox site or tag.
+- Select a NetBox site and optionally narrow its devices by tag.
 - Normalize NetBox objects into a typed domain model independent of the external API.
 - Perform static validation of a dual-plane L3 Clos fabric.
 - Generate a Containerlab topology and FRR startup configuration.
@@ -279,15 +279,15 @@ Containerlab `kind`, image, and renderer mappings belong in Git rather than NetB
 platforms:
   frr:
     kind: linux
-    image: frrouting/frr:<pinned-version>
+    image: frrouting/frr:<tested-version>
     renderer: frr
   linux-endpoint:
     kind: linux
-    image: ghcr.io/<project>/aftwin-endpoint:<pinned-version>
+    image: ghcr.io/<project>/aftwin-endpoint:<tested-version>
     renderer: linux_endpoint
 ```
 
-Pin tested image versions after the first integration test.
+Use explicit tested image versions and reject unversioned or `latest` references.
 
 ## 10. Golden Topology
 
@@ -378,10 +378,11 @@ Pydantic validates field-level consistency; NetworkX policies validate graph-lev
 
 ### Stage 1 — Fetch
 
-- Select a site slug or tag.
+- Select a site slug and optionally narrow devices by tag.
 - Retrieve all required API endpoints with pagination.
-- Save the raw response to `build/<site>/source/netbox.json`.
-- Never include tokens or secrets in the snapshot.
+- Save an allowlisted source snapshot to `build/<site>/source/netbox.json`.
+- Persist only fields required for normalization; never include tokens,
+  secrets, or unrelated NetBox record fields in the snapshot.
 
 ### Stage 2 — Normalize
 
@@ -413,6 +414,8 @@ build/<site>/
 
 - Run `containerlab deploy -t build/<site>/topology.clab.yml`.
 - Require successful static validation before deployment.
+- Require manifest integrity before deployment.
+- Require explicit tested version tags for both remote and local runtime images.
 - Fail if the lab already exists unless `--reconfigure` is explicitly supplied.
 
 ### Stage 6 — Verify
@@ -503,6 +506,7 @@ aftwin seed --fixture fixtures/mini-dual-plane.yaml
 
 # Validate NetBox source data
 aftwin validate --site aif-lab
+aftwin validate --site aif-lab --tag digital-twin
 
 # Generate topology and configuration
 aftwin compile --site aif-lab
@@ -520,6 +524,9 @@ aftwin lab down --site aif-lab
 ```
 
 Every command supports human-readable console output and machine-readable JSON.
+When `--site` is omitted, commands use `AFTWIN_SITE`. The development-only
+`seed` command rejects non-loopback NetBox targets unless `--allow-nonlocal` is
+passed explicitly.
 
 ```bash
 aftwin validate --site aif-lab --output json
@@ -677,6 +684,7 @@ AFTWIN_BUILD_DIR=build
 
 - Ignore `.env` in Git.
 - Remove tokens from reports and snapshots.
+- Build source snapshots from explicit field allowlists.
 - Never print credentials in command output.
 
 ## 20. Milestones
@@ -706,7 +714,7 @@ AFTWIN_BUILD_DIR=build
 - The `mini-dual-plane` golden fixture
 - An idempotent `seed` command
 - A read-only API adapter
-- A raw source snapshot
+- A deterministic, allowlisted source snapshot
 - The normalized domain model
 
 **Acceptance criteria**
@@ -854,7 +862,7 @@ AFTWIN_BUILD_DIR=build
 | The project resembles a generic exporter | Weak differentiation | Keep AI-specific rules and expected state central |
 | Dual-plane endpoint networking is complex | MVP delay | Limit endpoints to Linux VRFs and static defaults |
 | NetBox schema or API drift | Adapter failures | Isolate the adapter, store contract fixtures, pin versions |
-| Container image changes | Poor reproducibility | Pin tested versions or image digests |
+| Container image changes | Compatibility regressions | Use tested version tags, reject `latest`, and run integration tests |
 | Integration tests require privileges | CI limitations | Separate local or self-hosted integration tests |
 | Telemetry is introduced too early | Excess dependencies | Prohibit observability dependencies until M4 passes |
 | Users assume hardware-level performance | Misleading conclusions | State the control-plane and functional-twin boundary clearly |
