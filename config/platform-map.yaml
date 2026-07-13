@@ -2,7 +2,7 @@ schema_version: 1
 platforms:
   frr:
     kind: linux
-    image: quay.io/frrouting/frr:10.3.4@sha256:c8790a83db3cb105c0823f76afe55de5c9f77d968fb1ebd28174a8ddd49b989c
+    image: quay.io/frrouting/frr:10.3.4
     renderer: frr
   linux-endpoint:
     kind: linux

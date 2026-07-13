@@ -1,5 +1,5 @@
 {
-  "build_hash": "0be5dfeef0a3a671762978cbfe777e3dc338ebd2fcc3c0c8aa911aa128f0cac9",
+  "build_hash": "2334cb40cc864099b158f5e902cfe0426329b48a50ce62f6130d4e8a2f846474",
   "compiler_version": "0.1.0",
   "files": [
     {
@@ -114,8 +114,8 @@
     },
     {
       "path": "topology.clab.yml",
-      "sha256": "076adb1f6be3a8e5ffe1adca1f2b0297166d1e114dfbfd687ac31f06c4d6079d",
-      "size": 5708
+      "sha256": "0193b9fd76122ecb4199d2586f33047079b9175a03c38b97eed6a3536e62cb99",
+      "size": 5132
     }
   ],
   "schema_version": 1,

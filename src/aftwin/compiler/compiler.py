@@ -1,11 +1,12 @@
 """Validated intent to deterministic deployable artifacts."""
 
+import re
 import shutil
 from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from aftwin.compiler.expected_state import generate_expected_state, render_expected_state
 from aftwin.compiler.manifest import BuildManifest, InventoryMetadata
@@ -24,6 +25,16 @@ class PlatformEntry(BaseModel):
     kind: str = Field(min_length=1)
     image: str = Field(min_length=1)
     renderer: Literal["frr", "linux_endpoint"]
+
+    @field_validator("image")
+    @classmethod
+    def require_version_tag(cls, value: str) -> str:
+        reference = value.partition("@")[0]
+        component = reference.rsplit("/", maxsplit=1)[-1]
+        _, separator, tag = component.rpartition(":")
+        if not separator or re.fullmatch(r"v?[0-9]+(?:[._-][A-Za-z0-9]+)*", tag) is None:
+            raise ValueError("runtime image must use an explicit version tag")
+        return value
 
 
 class PlatformMap(BaseModel):
@@ -68,6 +79,7 @@ def _clear_generated(root: Path) -> None:
         "topology.clab.yml",
         "expected-state.json",
         "inventory.json",
+        "runtime-images.json",
         "manifest.json",
     ):
         path = root / relative
@@ -78,6 +90,9 @@ def _clear_generated(root: Path) -> None:
     runtime_report = root / "reports" / "runtime-verification.json"
     if runtime_report.exists():
         runtime_report.unlink()
+    scenario_reports = root / "reports" / "scenarios"
+    if scenario_reports.is_dir():
+        shutil.rmtree(scenario_reports)
 
 
 def _manifest_paths(root: Path) -> tuple[Path, ...]:
@@ -109,6 +124,10 @@ def compile_fabric(
 
     if not isinstance(profile, PolicyProfile):
         raise TypeError("profile must be a PolicyProfile")
+    # ``model_copy(update=...)`` does not revalidate Pydantic models. Revalidate
+    # at the filesystem boundary so externally sourced identifiers cannot
+    # escape the build root when they become directory names.
+    fabric = Fabric.model_validate(fabric.model_dump(mode="python"))
     required = {node.platform for node in fabric.nodes}
     unsupported = sorted(required - set(platform_map.platforms))
     if unsupported:
@@ -126,7 +145,8 @@ def compile_fabric(
     _clear_generated(output_dir)
     expected = generate_expected_state(fabric, profile)
     mappings = {
-        name: entry.model_dump(mode="json") for name, entry in platform_map.platforms.items()
+        name: {"kind": entry.kind, "image": entry.image, "renderer": entry.renderer}
+        for name, entry in platform_map.platforms.items()
     }
     _write(output_dir / "topology.clab.yml", render_containerlab_topology(fabric, mappings))
     for node in sorted(fabric.nodes, key=lambda item: item.name):
