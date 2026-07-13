@@ -23,12 +23,12 @@ This project is not a simulator for an entire AI factory. It is a digital twin f
 
 The MVP is defined by one statement:
 
-> Read physical topology and IPAM data from NetBox, deterministically generate a dual-plane L3 fabric, and automatically validate the structural invariants and basic connectivity required by an AI fabric.
+> Read physical topology and assigned IP address data from NetBox, deterministically generate a dual-plane L3 fabric, and automatically validate the structural invariants and basic connectivity required by an AI fabric.
 
 The initial implementation follows these decisions:
 
-1. NetBox is the source of truth for physical topology, cabling, addressing, and ASNs.
-2. Git is the source of truth for platform mappings, rendering templates, validation policies, and test scenarios.
+1. NetBox is the source of truth for physical topology, cabling, assigned interface addresses, and ASNs.
+2. Git is the source of truth for permitted address pools, prefix-length constraints, platform mappings, rendering templates, validation policies, and test scenarios.
 3. Containerlab is an ephemeral runtime for the generated network.
 4. The MVP treats NetBox as read-only. Only the development-only `seed` command may write fixture data.
 5. The data plane begins with L3 Clos, eBGP, and ECMP.
@@ -140,7 +140,7 @@ over the term `AI Factory Simulator`.
 
 ### 6.1 Native NetBox Objects First
 
-Prefer Site, Location, Rack, Device Role, Device Type, Device, Interface, Cable, Prefix, IP Address, ASN, Platform, and Tag. Use custom fields only for the minimum AI-fabric-specific semantics.
+The MVP prefers native Site, Location, Rack, Device Role, Device Type, Device, Interface, Cable, IP Address, ASN, Platform, and Tag objects. Use custom fields only for the minimum AI-fabric-specific semantics. Native Prefix objects are a future adoption path, not a current fixture or adapter capability; adopting them requires an explicit ownership migration and contract tests.
 
 ### 6.2 Read-Only Compile Path
 
@@ -148,8 +148,8 @@ Prefer Site, Location, Rack, Device Role, Device Type, Device, Interface, Cable,
 
 ### 6.3 Explicit Ownership
 
-- **NetBox:** physical objects, cabling, IPAM, and ASNs
-- **Git:** renderers, policies, platform mappings, scenarios, and golden tests
+- **NetBox:** physical objects, cabling, assigned interface addresses, and ASNs
+- **Git:** permitted address pools, prefix-length constraints, renderers, policies, platform mappings, scenarios, and golden tests
 - **Containerlab:** ephemeral runtime state
 - **`build/`:** reproducible generated artifacts
 
@@ -170,7 +170,7 @@ A successful `containerlab deploy` is insufficient. Completion requires evidence
 ```text
 ┌──────────────────────────────────────────────────────────────┐
 │ NetBox                                                       │
-│ Site / Device / Interface / Cable / IP / Prefix / ASN       │
+│ Site / Device / Interface / Cable / assigned IP / ASN        │
 └──────────────────────────────┬───────────────────────────────┘
                                │ REST API
                                ▼
@@ -218,7 +218,7 @@ A successful `containerlab deploy` is insufficient. Completion requires evidence
 | Physical device | Device |
 | Physical or logical port | Interface |
 | Direct connection | Cable |
-| Loopback, P2P, and management ranges | Prefix, IP Address |
+| Assigned loopback, P2P, and management addresses | IP Address |
 | BGP autonomous system | ASN |
 | Lab inclusion | Tag |
 
@@ -229,6 +229,7 @@ The exact mechanism that associates an ASN with a device must be resolved as par
 | Data | Proposed file |
 | --- | --- |
 | NetBox platform to Containerlab mapping | `config/platform-map.yaml` |
+| Permitted address pools and prefix lengths | `config/policies/*.yaml` |
 | Fabric policy | `config/policies/*.yaml` or Python rules |
 | Jinja templates | `src/aftwin/render/templates/` |
 | Golden fixture intent | `fixtures/mini-dual-plane.yaml` |
@@ -244,6 +245,8 @@ The exact mechanism that associates an ASN with a device must be resolved as par
 - Ping and workload results
 
 Runtime data is not written back to NetBox. Phase 2 drift reports compare intended and observed state.
+
+The current adapter reads assigned IP Address objects but does not query native NetBox Prefix objects. A future native-Prefix integration may move address-pool ownership into NetBox only after the seeder, adapter, policy schema, provenance model, and contract tests are updated together. Until then, documentation and validation must treat Git policy as authoritative for permitted pools and prefix-length constraints.
 
 ## 9. NetBox Data Model
 
@@ -407,7 +410,8 @@ build/<site>/
 ├── expected-state.json
 ├── inventory.json
 ├── manifest.json
-└── reports/static-validation.json
+├── reports/static-validation.json
+└── runtime/deployment.json     # created only after successful deployment
 ```
 
 ### Stage 5 — Deploy
@@ -417,12 +421,14 @@ build/<site>/
 - Require manifest integrity before deployment.
 - Require explicit tested version tags for both remote and local runtime images.
 - Fail if the lab already exists unless `--reconfigure` is explicitly supplied.
+- Record the deployed build hash, source revision, topology digest, lab name, and exact container set atomically after successful inspection.
 
 ### Stage 6 — Verify
 
 - Confirm every expected BGP neighbor is Established.
 - Confirm expected prefixes on every router.
 - Run a per-plane compute endpoint ping matrix.
+- Require the current manifest, deployment stamp, topology, source revision, and exact running container set to identify the same build before collecting evidence.
 - Emit JSON and a console summary.
 
 ## 13. Static Validation Rules
@@ -508,8 +514,8 @@ aftwin seed --fixture fixtures/mini-dual-plane.yaml
 aftwin validate --site aif-lab
 aftwin validate --site aif-lab --tag digital-twin
 
-# Generate topology and configuration
-aftwin compile --site aif-lab
+# Generate topology and configuration with explicit Git-owned inputs
+aftwin compile --site aif-lab --profile config/policies/mini-dual-plane.yaml --platform-map config/platform-map.yaml
 
 # Deploy the generated lab
 aftwin deploy --site aif-lab
@@ -650,6 +656,8 @@ NetBox up
 
 If privileged networking is impractical on GitHub-hosted runners, mark integration tests as `local` or `self-hosted`.
 
+The scheduled and manually dispatched E2E workflow runs on a privileged self-hosted Linux runner. It executes the existing live NetBox and Containerlab integration suites, runs the disposable seed-to-scenario demonstration, uploads topology and verification evidence, and performs lab and Compose cleanup even after failure.
+
 ## 19. Development Workflow
 
 ### 19.1 Local Commands
@@ -670,7 +678,7 @@ just test
 
 - Do not commit `build/`.
 - Commit only intentional golden output under `tests/golden/`.
-- Record the source hash and compiler version in every build.
+- Record source, policy-profile, platform-map, compiler, and artifact identities in every build.
 - Add a `DO NOT EDIT` header to generated files where the format permits comments.
 
 ### 19.3 Secret Handling
@@ -721,6 +729,7 @@ AFTWIN_BUILD_DIR=build
 
 - Seeding either fixture twice does not duplicate objects.
 - The adapter retrieves the required devices, interfaces, cables, IPs, and ASNs by site.
+- Interfaces without `fabric_role` are excluded, and cables are included only when both endpoints belong to the selected interface set.
 - Adapter unit and contract tests pass.
 
 ### M2 — Static Policy Engine
@@ -751,6 +760,8 @@ AFTWIN_BUILD_DIR=build
 **Acceptance criteria**
 
 - Two compilations of the same source produce the same hash.
+- Policy-profile and platform-map identities contribute to the build hash.
+- Compute and storage roles compile through the endpoint renderer contract.
 - Generated YAML passes Containerlab schema validation.
 - Every golden snapshot test passes.
 
@@ -770,6 +781,7 @@ AFTWIN_BUILD_DIR=build
 - Every expected BGP session is Established.
 - Per-plane all-to-all ping succeeds.
 - Cross-plane isolation passes.
+- Runtime verification rejects a missing, stale, tampered, or container-mismatched deployment identity.
 - Destroy removes related containers and links.
 
 ### M5 — Failure Scenarios

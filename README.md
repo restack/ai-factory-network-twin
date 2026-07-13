@@ -27,8 +27,8 @@ lab-down ← failure scenarios ← verify ← running digital twin
 
 ## What this repository demonstrates
 
-- NetBox as the source of truth for devices, interfaces, cables, IP addresses, prefixes, ASNs, roles, tags, and fabric planes.
-- Git as the source of truth for policy, platform mappings, renderers, golden fixtures, and failure scenarios.
+- NetBox as the source of truth for devices, interfaces, cables, assigned interface addresses, ASNs, roles, tags, and fabric planes.
+- Git as the source of truth for permitted address pools, prefix-length constraints, policy, platform mappings, renderers, golden fixtures, and failure scenarios.
 - Static validation of dual-plane AI-fabric invariants before deployment.
 - Deterministic generation of Containerlab, FRR, endpoint, expected-state, and manifest artifacts.
 - Runtime proof of BGP sessions, routes, ECMP, endpoint reachability, and cross-plane isolation.
@@ -48,7 +48,7 @@ The same NetBox intent compiles into a Containerlab topology. `just graph` group
 
 ```mermaid
 flowchart TB
-    NB["NetBox<br/>physical topology, IPAM, ASN"]
+    NB["NetBox<br/>physical topology, assigned IPs, ASN"]
     AD["NetBox adapter<br/>normalized Fabric model"]
     PE{"Policy engine<br/>static invariants"}
     CO["Deterministic compiler"]
@@ -67,12 +67,12 @@ flowchart TB
 
 The project keeps ownership boundaries explicit:
 
-| Owner        | Data                                                                   |
-| ------------ | ---------------------------------------------------------------------- |
-| NetBox       | Physical devices, roles, interfaces, cables, IPAM, ASNs, and tags      |
-| Git          | Policy profiles, platform mappings, renderers, fixtures, and scenarios |
-| `build/`     | Reproducible topology, configuration, expected state, and reports      |
-| Containerlab | Ephemeral containers, links, interface state, BGP, and routes          |
+| Owner | Data |
+| --- | --- |
+| NetBox | Physical devices, roles, interfaces, cables, assigned addresses, ASNs, and tags |
+| Git | Address-pool and prefix-length policy, platform mappings, renderers, fixtures, and scenarios |
+| `build/` | Reproducible topology, configuration, expected state, and reports |
+| Containerlab | Ephemeral containers, links, interface state, BGP, and routes |
 
 Compilation, deployment, and verification never write to NetBox. Only the development-only `seed` command creates fixture objects.
 
@@ -171,7 +171,7 @@ just seed
 just seed  # safe to repeat; no duplicate objects are created
 ```
 
-The fixture creates the site, roles, platforms, devices, interfaces, cables, prefixes, IP addresses, and ASN associations required by the lab. Refresh the NetBox device list to inspect the 12-device inventory shown above.
+The fixture creates the site, roles, platforms, devices, interfaces, cables, assigned IP addresses, and ASN associations required by the lab. It does not create NetBox Prefix objects: the current MVP keeps permitted address pools and required prefix lengths in the Git-owned policy profile. Refresh the NetBox device list to inspect the 12-device inventory shown above.
 
 For a smaller development slice, use:
 
@@ -222,7 +222,7 @@ The compiler fetches a fresh allowlisted NetBox snapshot, normalizes it, re-runs
 | `configs/routers/*`              | FRR daemon and startup configuration                 |
 | `configs/endpoints/*`            | Linux VRF and endpoint setup scripts                 |
 | `expected-state.json`            | Expected BGP, routes, paths, and reachability        |
-| `manifest.json`                  | Compiler version, build hash, file hashes, and sizes |
+| `manifest.json`                  | Source, policy, platform, compiler, and artifact identity |
 
 Compiling unchanged source produces byte-stable files and the same build hash. Deploy refuses missing, stale, or manifest-inconsistent artifacts.
 
@@ -256,7 +256,7 @@ The generated topology uses pinned, versioned images:
 - `quay.io/frrouting/frr:10.3.4`
 - `aftwin-endpoint:0.1.0`
 
-The deployment path first verifies static policy evidence, source identity, manifest consistency, and platform compatibility. It then creates four FRR spines, four FRR leaves, and four Linux endpoints in Containerlab.
+The deployment path first verifies static policy evidence, source identity, manifest consistency, and platform compatibility. It then creates four FRR spines, four FRR leaves, and four Linux endpoints in Containerlab. After a successful inspection it atomically records `build/aif-lab/runtime/deployment.json`; runtime verification and failure scenarios refuse to run unless that stamp, the current manifest, topology, source revision, and exact running container set all agree.
 
 ### 8. Verify the running control plane
 
@@ -395,7 +395,7 @@ Run `just` to print the available recipes.
 - **Local fixture boundary:** the development NetBox binds to loopback and uses intentionally public credentials.
 - **Fail before deploy:** invalid cabling, addressing, ASNs, roles, or planes prevent compilation and deployment.
 - **Versioned runtime:** platform images must use explicit version tags; unversioned and `latest` references are rejected.
-- **Manifest identity:** deploy, verify, and scenario reports bind to the exact source snapshot and generated build.
+- **Build/runtime identity:** the manifest includes the source, policy profile, platform map, compiler, and generated artifacts; verify and scenario reports bind that build to the exact deployed container set.
 - **Scoped lifecycle:** cleanup targets only the selected site and build.
 - **Guaranteed restoration:** failure scenarios restore modified interfaces even when a probe or verification step fails.
 
@@ -420,6 +420,8 @@ just test-containerlab
 ```
 
 The Containerlab test deploys an ephemeral topology and always destroys it in a `finally` cleanup path.
+
+The weekly and manually dispatched [privileged E2E workflow](.github/workflows/e2e.yml) runs both integration suites and the complete disposable demonstration on a self-hosted Linux runner labeled `privileged`, with Docker and Containerlab access. It uploads the compiled topology, manifest, expected state, and JSON verification and scenario reports, then removes the lab and local NetBox volumes in an unconditional cleanup step. The bundled workflow uses only the public FRR image and the locally built endpoint image; it does not require proprietary NOS images.
 
 ## Troubleshooting
 

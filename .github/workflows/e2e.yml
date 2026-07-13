@@ -1,0 +1,73 @@
+name: privileged e2e
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 18 * * 0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: privileged-e2e
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    name: NetBox and Containerlab E2E
+    runs-on: [self-hosted, linux, x64, privileged]
+    timeout-minutes: 60
+    env:
+      NETBOX_URL: http://127.0.0.1:8000
+      NETBOX_TOKEN: nbt_aftwindev001.0123456789abcdef0123456789abcdef01234567
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Check privileged runner prerequisites
+        run: |
+          docker info
+          docker compose version
+          containerlab version
+          just --version
+
+      - name: Install Python and locked dependencies
+        run: |
+          uv python install 3.12
+          uv sync --locked --all-groups
+
+      - name: Run live NetBox integration tests
+        run: just test-netbox
+
+      - name: Run privileged Containerlab integration tests
+        run: just test-containerlab
+
+      - name: Run disposable seed-to-scenario demonstration
+        run: just demo
+
+      - name: Upload topology and verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aif-lab-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            build/aif-lab/topology.clab.yml
+            build/aif-lab/inventory.json
+            build/aif-lab/expected-state.json
+            build/aif-lab/manifest.json
+            build/aif-lab/reports/**/*.json
+
+      - name: Clean up lab and local NetBox
+        if: always()
+        run: |
+          if [[ -f build/aif-lab/topology.clab.yml ]]; then
+            if ! uv run aftwin lab down --site aif-lab; then
+              containerlab destroy --topo build/aif-lab/topology.clab.yml --cleanup || true
+            fi
+          fi
+          docker compose -f deploy/netbox/docker-compose.yml down --volumes --remove-orphans || true
