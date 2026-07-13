@@ -178,14 +178,21 @@ def verify_routes(
             continue
         forbidden = forbidden_by_plane.get(plane, ())
         for route in table.routes:
-            pool = next((pool for pool in forbidden if route.prefix.subnet_of(pool)), None)
+            # The unscoped FRR RIB also contains the container management
+            # default route. Isolation concerns control-plane routes learned
+            # from the opposite fabric plane, not local kernel/static routes.
+            if route.protocol != "bgp":
+                continue
+            pool = next((pool for pool in forbidden if route.prefix.overlaps(pool)), None)
             if pool is not None:
                 findings.append(
                     VerificationFinding(
                         rule_id="RTE005",
                         category=VerificationCategory.ROUTES,
                         target=f"{router}:{route.prefix}",
-                        message=f"route from forbidden cross-plane pool {pool} is installed",
+                        message=(
+                            f"route overlapping forbidden cross-plane pool {pool} is installed"
+                        ),
                         hint=(
                             "Remove route leaking between Plane A and Plane B and "
                             "inspect VRF scope."

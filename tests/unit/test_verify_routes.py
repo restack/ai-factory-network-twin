@@ -103,3 +103,45 @@ def test_verify_routes_reports_insufficient_ecmp() -> None:
     finding = section.findings[0]
     assert finding.rule_id == "RTE004"
     assert "expected at least 2" in finding.message
+
+
+def test_verify_routes_rejects_aggregate_and_default_routes_overlapping_forbidden_pool() -> None:
+    table = parse_route_table(
+        "leaf-a1",
+        {
+            "0.0.0.0/0": [{"protocol": "bgp", "nexthops": [{"ip": "10.0.0.1"}]}],
+            "10.0.0.0/8": [{"protocol": "bgp", "nexthops": [{"ip": "10.0.0.1"}]}],
+            "10.20.0.2/31": [
+                {
+                    "protocol": "bgp",
+                    "nexthops": [{"ip": "10.0.0.1"}, {"ip": "10.0.0.3"}],
+                }
+            ],
+            "192.0.2.0/24": [{"protocol": "bgp", "nexthops": [{"ip": "10.0.0.1"}]}],
+        },
+    )
+
+    section = verify_routes((route_expectation(),), (isolation_expectation(),), {"leaf-a1": table})
+
+    leak_targets = {finding.target for finding in section.findings if finding.rule_id == "RTE005"}
+    assert section.passed == 1
+    assert leak_targets == {"leaf-a1:0.0.0.0/0", "leaf-a1:10.0.0.0/8"}
+
+
+def test_verify_routes_allows_non_bgp_management_default_route() -> None:
+    table = parse_route_table(
+        "leaf-a1",
+        {
+            "0.0.0.0/0": [{"protocol": "kernel", "nexthops": [{"ip": "172.30.30.1"}]}],
+            "10.20.0.2/31": [
+                {
+                    "protocol": "bgp",
+                    "nexthops": [{"ip": "10.0.0.1"}, {"ip": "10.0.0.3"}],
+                }
+            ],
+        },
+    )
+
+    section = verify_routes((route_expectation(),), (isolation_expectation(),), {"leaf-a1": table})
+
+    assert section.successful
