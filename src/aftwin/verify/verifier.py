@@ -15,7 +15,12 @@ from aftwin.compiler.expected_state import ExpectedState
 from aftwin.domain.enums import FabricPlane
 from aftwin.errors import RuntimeVerificationError
 from aftwin.runtime.executor import CommandExecutionError, CommandResult
-from aftwin.runtime.lifecycle import ContainerlabRuntime
+from aftwin.runtime.lifecycle import (
+    ContainerlabRuntime,
+    DeploymentStamp,
+    LabLifecycle,
+    LabLifecycleError,
+)
 from aftwin.verify.bgp import ObservedBgpRouter, parse_bgp_summary, verify_bgp
 from aftwin.verify.reachability import PingOutcome, parse_ping_outcome, verify_reachability
 from aftwin.verify.report import VerificationReport, VerificationSection
@@ -117,17 +122,20 @@ class RuntimeVerifier:
 
     def verify(self, site_dir: Path) -> VerificationReport:
         """Collect all live evidence, persist a report, and return it."""
+        deployment = self._require_deployed_build(site_dir)
         expected = self.load_expected(site_dir)
         topology = site_dir / "topology.clab.yml"
         bgp = self._wait_for_bgp(topology, expected)
         route_tables = self._wait_for_routes(topology, expected)
         pings = self._collect_pings(topology, expected)
         report = VerificationReport(
+            build_hash=deployment.build_hash,
+            source_revision=deployment.source_revision,
             sections=(
                 verify_bgp(expected.bgp_adjacencies, bgp),
                 verify_routes(expected.router_prefixes, expected.isolation, route_tables),
                 *verify_reachability(expected.reachability, expected.isolation, pings),
-            )
+            ),
         )
         report_path = site_dir / "reports" / "runtime-verification.json"
         report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -136,6 +144,7 @@ class RuntimeVerifier:
 
     def verify_connectivity(self, site_dir: Path) -> tuple[VerificationSection, ...]:
         """Verify only endpoint reachability and isolation for a failure scenario."""
+        self._require_deployed_build(site_dir)
         expected = self.load_expected(site_dir)
         topology = site_dir / "topology.clab.yml"
         pings = self._collect_pings(topology, expected)
@@ -143,11 +152,18 @@ class RuntimeVerifier:
 
     def reachability_contract(self, site_dir: Path) -> frozenset[tuple[FabricPlane, str, str]]:
         """Return directed endpoint probes available to scenario contracts."""
+        self._require_deployed_build(site_dir)
         expected = self.load_expected(site_dir)
         return frozenset(
             (probe.plane, probe.source_node, probe.destination_node)
             for probe in expected.reachability
         )
+
+    def _require_deployed_build(self, site_dir: Path) -> DeploymentStamp:
+        try:
+            return LabLifecycle(self._containerlab).require_deployed_build(site_dir)
+        except LabLifecycleError as error:
+            raise RuntimeVerificationError(error.message, details=error.details) from error
 
     def _exec(self, topology: Path, node: str, command: Sequence[str]) -> NodeCommandResult:
         try:

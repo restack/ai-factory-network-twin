@@ -11,7 +11,13 @@ from aftwin.runtime.executor import (
     CommandFailureKind,
     CommandResult,
 )
-from aftwin.runtime.lifecycle import LabInspection, LabLifecycle, LabLifecycleError
+from aftwin.runtime.lifecycle import (
+    DEPLOYMENT_STAMP_PATH,
+    DeploymentStamp,
+    LabInspection,
+    LabLifecycle,
+    LabLifecycleError,
+)
 
 
 def _result(stdout: str = "") -> CommandResult:
@@ -60,6 +66,7 @@ def _build_dir(tmp_path: Path, *, passed: bool = True) -> Path:
         json.dumps({"passed": passed}), encoding="utf-8"
     )
     (site_dir / "inventory.json").write_text(json.dumps({"node_count": 1}), encoding="utf-8")
+    (site_dir / "expected-state.json").write_text("{}", encoding="utf-8")
     BuildManifest.create(site_dir, source_revision="unit-test").write(site_dir)
     return site_dir
 
@@ -73,6 +80,11 @@ def test_deploy_requires_validation_then_proves_lab_is_running(tmp_path: Path) -
     topology = site_dir / "topology.clab.yml"
     assert result.changed
     assert result.inspection.running
+    stamp = DeploymentStamp.model_validate_json(
+        (site_dir / DEPLOYMENT_STAMP_PATH).read_text(encoding="utf-8")
+    )
+    assert stamp.lab_name == "lab"
+    assert stamp.container_names == ("clab-lab-leaf-a1",)
     assert runtime.calls == [
         ("inspect_all",),
         ("deploy", topology, False),
@@ -180,6 +192,10 @@ def test_deploy_refuses_artifacts_modified_after_compilation(tmp_path: Path) -> 
 
 def test_destroy_proves_resources_are_removed(tmp_path: Path) -> None:
     site_dir = _build_dir(tmp_path)
+    DeploymentStamp.from_build(
+        site_dir,
+        BuildManifest.model_validate_json((site_dir / "manifest.json").read_text()),
+    ).write(site_dir)
     runtime = FakeContainerlab([{"lab": [{"name": "clab-lab-leaf-a1", "state": "running"}]}, {}])
 
     result = LabLifecycle(runtime).destroy(site_dir)
@@ -187,6 +203,7 @@ def test_destroy_proves_resources_are_removed(tmp_path: Path) -> None:
     topology = site_dir / "topology.clab.yml"
     assert result.changed
     assert not result.inspection.running
+    assert not (site_dir / DEPLOYMENT_STAMP_PATH).exists()
     assert runtime.calls == [
         ("inspect_all",),
         ("destroy", topology, True),
@@ -196,13 +213,74 @@ def test_destroy_proves_resources_are_removed(tmp_path: Path) -> None:
 
 def test_destroy_is_idempotent_when_lab_is_absent(tmp_path: Path) -> None:
     site_dir = _build_dir(tmp_path)
+    DeploymentStamp.from_build(
+        site_dir,
+        BuildManifest.model_validate_json((site_dir / "manifest.json").read_text()),
+    ).write(site_dir)
     runtime = FakeContainerlab([[]])
 
     result = LabLifecycle(runtime).destroy(site_dir)
 
     assert not result.changed
     assert result.command is None
+    assert not (site_dir / DEPLOYMENT_STAMP_PATH).exists()
     assert [call[0] for call in runtime.calls] == ["inspect_all"]
+
+
+def test_precompile_gate_refuses_to_replace_a_running_lab_build(tmp_path: Path) -> None:
+    site_dir = _build_dir(tmp_path)
+    running = {"lab": [{"name": "clab-lab-leaf-a1", "state": "running"}]}
+
+    with pytest.raises(LabLifecycleError, match="destroy it before compiling"):
+        LabLifecycle(FakeContainerlab([running])).require_absent_before_compile(site_dir)
+
+
+def test_precompile_gate_allows_a_site_without_existing_artifacts(tmp_path: Path) -> None:
+    runtime = FakeContainerlab([])
+
+    LabLifecycle(runtime).require_absent_before_compile(tmp_path / "new-site")
+
+    assert runtime.calls == []
+
+
+def test_runtime_identity_rejects_build_b_while_build_a_is_running(tmp_path: Path) -> None:
+    site_dir = _build_dir(tmp_path)
+    running = {"lab": [{"name": "clab-lab-leaf-a1", "state": "running"}]}
+    lifecycle = LabLifecycle(FakeContainerlab([{}, running]))
+    lifecycle.deploy(site_dir)
+
+    BuildManifest.create(site_dir, source_revision="build-b").write(site_dir)
+
+    with pytest.raises(LabLifecycleError, match="does not match the current compiled build"):
+        lifecycle.require_deployed_build(site_dir)
+
+
+def test_runtime_identity_rejects_artifact_tampering_before_inspection(tmp_path: Path) -> None:
+    site_dir = _build_dir(tmp_path)
+    running = {"lab": [{"name": "clab-lab-leaf-a1", "state": "running"}]}
+    runtime = FakeContainerlab([{}, running])
+    lifecycle = LabLifecycle(runtime)
+    lifecycle.deploy(site_dir)
+    runtime.calls.clear()
+
+    (site_dir / "inventory.json").write_text(json.dumps({"node_count": 2}), encoding="utf-8")
+
+    with pytest.raises(LabLifecycleError, match="differs from manifest"):
+        lifecycle.require_deployed_build(site_dir)
+    assert runtime.calls == []
+
+
+def test_runtime_identity_requires_exact_running_container_set(tmp_path: Path) -> None:
+    site_dir = _build_dir(tmp_path)
+    expected = {"lab": [{"name": "clab-lab-leaf-a1", "state": "running"}]}
+    runtime = FakeContainerlab(
+        [{}, expected, {"lab": [*expected["lab"], {"name": "clab-lab-extra", "state": "running"}]}]
+    )
+    lifecycle = LabLifecycle(runtime)
+    lifecycle.deploy(site_dir)
+
+    with pytest.raises(LabLifecycleError, match="container set does not match"):
+        lifecycle.require_deployed_build(site_dir)
 
 
 def test_command_failure_is_translated_to_structured_deployment_error(tmp_path: Path) -> None:

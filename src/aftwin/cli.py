@@ -214,6 +214,9 @@ def lab_up(
     output: OutputFormat = "human",
 ) -> None:
     """Compile and deploy the local lab."""
+    settings = Settings()
+    site = _resolve_identifier(settings.site if site is None else site, field="site")
+    _lab_lifecycle().require_absent_before_compile(settings.build_dir / site)
     compile(
         site=site,
         tag=tag,

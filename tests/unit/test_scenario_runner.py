@@ -6,6 +6,7 @@ from aftwin.compiler.manifest import BuildManifest
 from aftwin.domain.enums import FabricPlane
 from aftwin.errors import RuntimeVerificationError
 from aftwin.runtime.executor import CommandResult
+from aftwin.runtime.lifecycle import DeploymentStamp
 from aftwin.scenario.models import load_scenario
 from aftwin.scenario.runner import ScenarioRunner
 from aftwin.verify.report import VerificationReport, VerificationSection
@@ -55,7 +56,13 @@ class FakeRuntime:
         raise AssertionError(topology)
 
     def inspect_all(self) -> CommandResult:
-        raise AssertionError("not used")
+        payload = {
+            "mini": [
+                {"name": "clab-mini-leaf-a1", "state": "running"},
+                {"name": "clab-mini-spine-a1", "state": "running"},
+            ]
+        }
+        return CommandResult(("containerlab", "inspect"), 0, json.dumps(payload), "", 0.01)
 
 
 class FakeVerifier:
@@ -67,7 +74,9 @@ class FakeVerifier:
         del site_dir
         self.full_calls += 1
         return VerificationReport(
-            sections=(VerificationSection(name="full", expected=4, passed=4),)
+            build_hash="b" * 64,
+            source_revision="c" * 64,
+            sections=(VerificationSection(name="full", expected=4, passed=4),),
         )
 
     def verify_connectivity(self, site_dir: Path) -> tuple[VerificationSection, ...]:
@@ -92,7 +101,7 @@ class FakeVerifier:
 
 def _site_dir(tmp_path: Path) -> Path:
     site_dir = tmp_path / "mini"
-    site_dir.mkdir()
+    (site_dir / "reports").mkdir(parents=True)
     (site_dir / "topology.clab.yml").write_text(
         """name: mini
 topology:
@@ -105,12 +114,14 @@ topology:
 """,
         encoding="utf-8",
     )
-    BuildManifest(
-        compiler_version="unit-test",
-        source_revision="c" * 64,
-        build_hash="b" * 64,
-        files=(),
-    ).write(site_dir)
+    (site_dir / "inventory.json").write_text(json.dumps({"node_count": 2}), encoding="utf-8")
+    (site_dir / "expected-state.json").write_text("{}", encoding="utf-8")
+    (site_dir / "reports" / "static-validation.json").write_text(
+        json.dumps({"passed": True}), encoding="utf-8"
+    )
+    manifest = BuildManifest.create(site_dir, source_revision="c" * 64)
+    manifest.write(site_dir)
+    DeploymentStamp.from_build(site_dir, manifest).write(site_dir)
     return site_dir
 
 
@@ -123,7 +134,8 @@ def test_link_failure_runs_four_phases_and_restores(tmp_path: Path) -> None:
     report = ScenarioRunner(runtime, verifier).run(site_dir, scenario)
 
     assert report.passed
-    assert report.build_hash == "b" * 64
+    manifest = BuildManifest.model_validate_json((site_dir / "manifest.json").read_text())
+    assert report.build_hash == manifest.build_hash
     assert report.source_revision == "c" * 64
     assert len(report.scenario_revision) == 64
     assert runtime.actions == [("leaf-a1", "eth1", "down"), ("leaf-a1", "eth1", "up")]
@@ -190,4 +202,21 @@ def test_unknown_declared_probe_is_rejected_before_fault_injection(tmp_path: Pat
         assert "absent from generated expected state" in error.message
     else:
         raise AssertionError("unknown scenario probe unexpectedly passed")
+    assert runtime.actions == []
+
+
+def test_scenario_rejects_a_new_disk_build_before_fault_injection(tmp_path: Path) -> None:
+    runtime = FakeRuntime()
+    scenario = load_scenario(Path("scenarios/link-failure.yaml"))
+    site_dir = _site_dir(tmp_path)
+    old_manifest = BuildManifest.model_validate_json((site_dir / "manifest.json").read_text())
+    paths = tuple(site_dir / artifact.path for artifact in old_manifest.files)
+    BuildManifest.create(site_dir, source_revision="new-build", paths=paths).write(site_dir)
+
+    try:
+        ScenarioRunner(runtime, FakeVerifier()).run(site_dir, scenario)
+    except RuntimeVerificationError as error:
+        assert "does not match the current compiled build" in error.message
+    else:
+        raise AssertionError("scenario unexpectedly accepted a different disk build")
     assert runtime.actions == []

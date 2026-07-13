@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Sequence
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Any, Literal, Protocol, Self, cast
 
 import yaml
-from pydantic import ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from aftwin.compiler.manifest import BuildManifest, sha256_file
 from aftwin.errors import AftwinError, ExitCode
@@ -20,6 +22,60 @@ from aftwin.runtime.executor import (
 )
 
 type JsonValue = None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
+
+DEPLOYMENT_STAMP_PATH = Path("runtime/deployment.json")
+
+
+class DeploymentStamp(BaseModel):
+    """Content-derived identity of the build currently deployed at runtime."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal[1] = 1
+    lab_name: str = Field(min_length=1)
+    topology_file: Literal["topology.clab.yml"] = "topology.clab.yml"
+    topology_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    build_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_revision: str = Field(min_length=1)
+    container_names: tuple[str, ...]
+
+    @field_validator("container_names")
+    @classmethod
+    def sort_and_require_unique_names(cls, names: tuple[str, ...]) -> tuple[str, ...]:
+        ordered = tuple(sorted(names))
+        if not ordered or len(set(ordered)) != len(ordered):
+            raise ValueError("deployment container names must be non-empty and unique")
+        if any(not name for name in ordered):
+            raise ValueError("deployment container names must be non-empty and unique")
+        return ordered
+
+    @classmethod
+    def from_build(cls, site_dir: Path, manifest: BuildManifest) -> Self:
+        """Derive runtime identity from an integrity-checked build."""
+        topology = site_dir / "topology.clab.yml"
+        return cls(
+            lab_name=LabLifecycle.topology_name(topology),
+            topology_sha256=sha256_file(topology),
+            build_hash=manifest.build_hash,
+            source_revision=manifest.source_revision,
+            container_names=tuple(LabLifecycle.expected_container_names(topology)),
+        )
+
+    def to_json(self) -> str:
+        """Render canonical newline-terminated JSON without volatile timestamps."""
+        return json.dumps(self.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
+
+    def write(self, site_dir: Path) -> Path:
+        """Atomically publish this stamp below the build's runtime directory."""
+        destination = site_dir / DEPLOYMENT_STAMP_PATH
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        temporary = destination.with_suffix(".tmp")
+        try:
+            temporary.write_text(self.to_json(), encoding="utf-8", newline="\n")
+            os.replace(temporary, destination)
+        finally:
+            temporary.unlink(missing_ok=True)
+        return destination
 
 
 class ContainerlabRuntime(Protocol):
@@ -122,17 +178,29 @@ class LabLifecycle:
                 details={"stdout": result.stdout, "stderr": result.stderr},
             ) from error
         return LabInspection(
-            payload=self._filter_lab(payload, self._topology_name(topology)), command=result
+            payload=self._filter_lab(payload, self.topology_name(topology)), command=result
         )
+
+    def require_absent_before_compile(self, site_dir: Path) -> None:
+        """Refuse to replace build artifacts while their lab is still running."""
+        topology = self.topology_path(site_dir)
+        if not topology.is_file():
+            return
+        inspection = self.inspect(site_dir)
+        if inspection.running:
+            raise LabLifecycleError(
+                "the lab already exists; destroy it before compiling a replacement build",
+                operation="pre-compilation check",
+            )
 
     def deploy(self, site_dir: Path, *, reconfigure: bool = False) -> LifecycleResult:
         """Deploy a validated build and prove that runtime resources exist."""
         topology = self.topology_path(site_dir)
         self._require_file(topology, operation="deployment")
-        self._require_manifest_integrity(site_dir)
+        manifest = self._require_manifest_integrity(site_dir, operation="deployment")
         self._require_static_validation(site_dir)
         expected_nodes = self._expected_node_count(site_dir)
-        expected_names = self._expected_container_names(topology)
+        expected_names = self.expected_container_names(topology)
         if len(expected_names) != expected_nodes:
             raise LabLifecycleError(
                 "topology and inventory node counts do not match",
@@ -147,6 +215,7 @@ class LabLifecycle:
         try:
             command = self._containerlab.deploy(topology, reconfigure=reconfigure)
         except CommandExecutionError as error:
+            self._remove_deployment_stamp(site_dir)
             raise LabLifecycleError(
                 str(error),
                 operation="deployment",
@@ -159,6 +228,7 @@ class LabLifecycle:
             after = self.inspect(site_dir)
         except LabLifecycleError as error:
             cleanup = self._cleanup_failed_deploy(topology)
+            self._remove_deployment_stamp(site_dir)
             raise LabLifecycleError(
                 f"post-deployment inspection failed: {error.message}",
                 operation="deployment",
@@ -169,6 +239,7 @@ class LabLifecycle:
         }
         if observed_names != expected_names or not after.all_running:
             cleanup = self._cleanup_failed_deploy(topology)
+            self._remove_deployment_stamp(site_dir)
             raise LabLifecycleError(
                 "Containerlab did not report every expected node in the running state",
                 operation="deployment",
@@ -178,6 +249,16 @@ class LabLifecycle:
                     "cleanup": cleanup,
                 },
             )
+        try:
+            DeploymentStamp.from_build(site_dir, manifest).write(site_dir)
+        except OSError as error:
+            cleanup = self._cleanup_failed_deploy(topology)
+            self._remove_deployment_stamp(site_dir)
+            raise LabLifecycleError(
+                "could not persist runtime deployment identity",
+                operation="deployment",
+                details={"path": (site_dir / DEPLOYMENT_STAMP_PATH).as_posix(), "cleanup": cleanup},
+            ) from error
         return LifecycleResult(operation="deploy", changed=True, command=command, inspection=after)
 
     def destroy(
@@ -188,6 +269,7 @@ class LabLifecycle:
         self._require_file(topology, operation="destruction")
         before = self.inspect(site_dir)
         if not before.running and ignore_missing:
+            self._remove_deployment_stamp(site_dir)
             return LifecycleResult(
                 operation="destroy", changed=False, command=None, inspection=before
             )
@@ -201,7 +283,64 @@ class LabLifecycle:
                 "Containerlab still reports resources after destroy",
                 operation="destruction",
             )
+        self._remove_deployment_stamp(site_dir)
         return LifecycleResult(operation="destroy", changed=True, command=command, inspection=after)
+
+    def require_deployed_build(self, site_dir: Path) -> DeploymentStamp:
+        """Prove disk artifacts and the exact running lab share one build identity."""
+        operation = "runtime identity validation"
+        topology = self.topology_path(site_dir)
+        self._require_file(topology, operation=operation)
+        manifest = self._require_manifest_integrity(site_dir, operation=operation)
+        stamp_path = site_dir / DEPLOYMENT_STAMP_PATH
+        try:
+            stamp = DeploymentStamp.model_validate_json(stamp_path.read_text(encoding="utf-8"))
+        except (OSError, ValidationError) as error:
+            raise LabLifecycleError(
+                "runtime deployment stamp is missing, unreadable, or invalid",
+                operation=operation,
+                details={"path": stamp_path.as_posix()},
+            ) from error
+
+        expected_names = tuple(sorted(self.expected_container_names(topology)))
+        current_identity = {
+            "lab_name": self.topology_name(topology),
+            "topology_sha256": sha256_file(topology),
+            "build_hash": manifest.build_hash,
+            "source_revision": manifest.source_revision,
+            "container_names": expected_names,
+        }
+        stamped_identity = {
+            "lab_name": stamp.lab_name,
+            "topology_sha256": stamp.topology_sha256,
+            "build_hash": stamp.build_hash,
+            "source_revision": stamp.source_revision,
+            "container_names": stamp.container_names,
+        }
+        mismatches = sorted(
+            key for key, value in current_identity.items() if stamped_identity[key] != value
+        )
+        if mismatches:
+            raise LabLifecycleError(
+                "running lab identity does not match the current compiled build",
+                operation=operation,
+                details={"mismatched_fields": mismatches},
+            )
+
+        inspection = self.inspect(site_dir)
+        observed_names = tuple(
+            sorted(name for node in inspection.nodes if isinstance((name := node.get("name")), str))
+        )
+        if not inspection.all_running or observed_names != stamp.container_names:
+            raise LabLifecycleError(
+                "running container set does not match the deployed build",
+                operation=operation,
+                details={
+                    "expected_containers": list(stamp.container_names),
+                    "observed_containers": list(observed_names),
+                },
+            )
+        return stamp
 
     @staticmethod
     def _require_file(path: Path, *, operation: str) -> None:
@@ -266,22 +405,29 @@ class LabLifecycle:
         return count
 
     @staticmethod
-    def _require_manifest_integrity(site_dir: Path) -> None:
+    def _require_manifest_integrity(
+        site_dir: Path, *, operation: str = "deployment"
+    ) -> BuildManifest:
         manifest_path = site_dir / "manifest.json"
         try:
             manifest = BuildManifest.model_validate_json(manifest_path.read_text(encoding="utf-8"))
         except (OSError, ValidationError) as error:
             raise LabLifecycleError(
                 "build manifest is unreadable or invalid",
-                operation="deployment",
+                operation=operation,
                 details={"path": manifest_path.as_posix()},
             ) from error
-        required = {"topology.clab.yml", "inventory.json", "reports/static-validation.json"}
+        required = {
+            "topology.clab.yml",
+            "expected-state.json",
+            "inventory.json",
+            "reports/static-validation.json",
+        }
         recorded = {artifact.path for artifact in manifest.files}
         if not required <= recorded:
             raise LabLifecycleError(
                 "build manifest does not cover required deployment artifacts",
-                operation="deployment",
+                operation=operation,
                 details={"missing": sorted(required - recorded)},
             )
         for artifact in manifest.files:
@@ -293,9 +439,17 @@ class LabLifecycle:
             ):
                 raise LabLifecycleError(
                     f"build artifact differs from manifest: {artifact.path}",
-                    operation="deployment",
+                    operation=operation,
                     details={"path": artifact.path},
                 )
+        return manifest
+
+    @staticmethod
+    def _remove_deployment_stamp(site_dir: Path) -> None:
+        stamp = site_dir / DEPLOYMENT_STAMP_PATH
+        stamp.unlink(missing_ok=True)
+        with suppress(OSError):
+            stamp.parent.rmdir()
 
     @staticmethod
     def _command_error(operation: str, error: CommandExecutionError) -> LabLifecycleError:
@@ -328,7 +482,8 @@ class LabLifecycle:
         )
 
     @staticmethod
-    def _topology_name(topology: Path) -> str:
+    def topology_name(topology: Path) -> str:
+        """Read the Containerlab name from a generated topology."""
         try:
             payload: object = yaml.safe_load(topology.read_text(encoding="utf-8"))
         except (OSError, yaml.YAMLError) as error:
@@ -345,7 +500,8 @@ class LabLifecycle:
         return name
 
     @classmethod
-    def _expected_container_names(cls, topology: Path) -> set[str]:
+    def expected_container_names(cls, topology: Path) -> set[str]:
+        """Derive the exact Containerlab container names for a topology."""
         try:
             payload: object = yaml.safe_load(topology.read_text(encoding="utf-8"))
         except (OSError, yaml.YAMLError) as error:
@@ -361,7 +517,7 @@ class LabLifecycle:
         nodes = cast(dict[str, object], topology_data).get("nodes")
         if not isinstance(nodes, dict):
             raise LabLifecycleError("topology has no node map", operation="deployment")
-        lab_name = cls._topology_name(topology)
+        lab_name = cls.topology_name(topology)
         return {f"clab-{lab_name}-{node}" for node in cast(dict[str, object], nodes)}
 
     @staticmethod

@@ -87,6 +87,8 @@ class VerificationReport(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
 
+    build_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_revision: str = Field(min_length=1)
     sections: tuple[VerificationSection, ...]
 
     @field_validator("sections")
@@ -115,6 +117,8 @@ class VerificationReport(BaseModel):
     def as_dict(self) -> dict[str, Any]:
         """Return deterministic machine-readable report data."""
         return {
+            "build_hash": self.build_hash,
+            "source_revision": self.source_revision,
             "passed": self.passed,
             "finding_count": len(self.findings),
             "sections": [section.as_dict() for section in self.sections],

@@ -18,6 +18,14 @@ def finding(rule_id: str, target: str) -> VerificationFinding:
     )
 
 
+def report(*sections: VerificationSection) -> VerificationReport:
+    return VerificationReport(
+        build_hash="b" * 64,
+        source_revision="source-revision",
+        sections=sections,
+    )
+
+
 def test_report_is_stable_independent_of_input_order() -> None:
     first = VerificationSection(name="routes", expected=2, passed=2, findings=())
     second = VerificationSection(
@@ -27,37 +35,33 @@ def test_report_is_stable_independent_of_input_order() -> None:
         findings=(finding("BGP005", "z"), finding("BGP001", "a")),
     )
 
-    report = VerificationReport(sections=(first, second))
-    reordered = VerificationReport(
-        sections=(
-            VerificationSection(
-                name="bgp-sessions",
-                expected=2,
-                passed=0,
-                findings=tuple(reversed(second.findings)),
-            ),
-            first,
-        )
+    original = report(first, second)
+    reordered = report(
+        VerificationSection(
+            name="bgp-sessions",
+            expected=2,
+            passed=0,
+            findings=tuple(reversed(second.findings)),
+        ),
+        first,
     )
 
-    assert report.to_json() == reordered.to_json()
-    assert report.to_json().endswith("\n")
-    assert not report.passed
+    assert original.to_json() == reordered.to_json()
+    assert original.to_json().endswith("\n")
+    assert not original.passed
 
 
 def test_human_report_is_actionable_and_newline_terminated() -> None:
-    report = VerificationReport(
-        sections=(
-            VerificationSection(
-                name="bgp-sessions",
-                expected=1,
-                passed=0,
-                findings=(finding("BGP005", "leaf-a1->10.0.0.1"),),
-            ),
+    verification = report(
+        VerificationSection(
+            name="bgp-sessions",
+            expected=1,
+            passed=0,
+            findings=(finding("BGP005", "leaf-a1->10.0.0.1"),),
         )
     )
 
-    rendered = report.render_human()
+    rendered = verification.render_human()
 
     assert rendered.startswith("Runtime verification: FAIL\n")
     assert "bgp-sessions: 0/1 passed [FAIL]" in rendered

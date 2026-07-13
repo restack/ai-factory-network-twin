@@ -3,10 +3,13 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
+import yaml
 
 from aftwin.compiler.expected_state import ExpectedState
+from aftwin.compiler.manifest import BuildManifest
 from aftwin.errors import RuntimeVerificationError
 from aftwin.runtime.executor import CommandResult
+from aftwin.runtime.lifecycle import DeploymentStamp
 from aftwin.verify.verifier import RuntimeVerifier, decode_node_command
 
 GOLDEN = Path("tests/golden/mini-dual-plane")
@@ -83,19 +86,44 @@ class PassingRuntime:
         raise AssertionError(topology)
 
     def inspect_all(self) -> CommandResult:
-        raise AssertionError("not used by verifier")
+        topology = yaml.safe_load((GOLDEN / "topology.clab.yml").read_text(encoding="utf-8"))
+        names = sorted(topology["topology"]["nodes"])
+        payload = {
+            "mini-dual-plane": [
+                {"name": f"clab-mini-dual-plane-{name}", "state": "running"} for name in names
+            ]
+        }
+        return CommandResult(("containerlab", "inspect"), 0, json.dumps(payload), "", 0.01)
+
+
+def _write_deployed_build(tmp_path: Path) -> ExpectedState:
+    expected = ExpectedState.model_validate_json((GOLDEN / "expected-state.json").read_text())
+    (tmp_path / "reports").mkdir()
+    for filename in ("expected-state.json", "topology.clab.yml"):
+        (tmp_path / filename).write_text(
+            (GOLDEN / filename).read_text(encoding="utf-8"), encoding="utf-8"
+        )
+    (tmp_path / "inventory.json").write_text(json.dumps({"node_count": 12}), encoding="utf-8")
+    (tmp_path / "reports" / "static-validation.json").write_text(
+        json.dumps({"passed": True}), encoding="utf-8"
+    )
+    manifest = BuildManifest.create(tmp_path, source_revision=expected.source_revision)
+    manifest.write(tmp_path)
+    DeploymentStamp.from_build(tmp_path, manifest).write(tmp_path)
+    return expected
 
 
 def test_runtime_verifier_collects_complete_passing_matrix(tmp_path: Path) -> None:
-    expected = ExpectedState.model_validate_json((GOLDEN / "expected-state.json").read_text())
-    (tmp_path / "expected-state.json").write_text(
-        (GOLDEN / "expected-state.json").read_text(), encoding="utf-8"
-    )
-    (tmp_path / "topology.clab.yml").write_text("name: mini-dual-plane\n", encoding="utf-8")
+    expected = _write_deployed_build(tmp_path)
 
     report = RuntimeVerifier(PassingRuntime(expected), max_workers=4).verify(tmp_path)
 
     assert report.passed
+    assert (
+        report.build_hash
+        == BuildManifest.model_validate_json((tmp_path / "manifest.json").read_text()).build_hash
+    )
+    assert report.source_revision == expected.source_revision
     assert {section.name: (section.passed, section.expected) for section in report.sections} == {
         "bgp-sessions": (8, 8),
         "cross-plane-isolation": (32, 32),
@@ -123,3 +151,11 @@ def test_decode_node_command_requires_inner_return_code() -> None:
 
     with pytest.raises(RuntimeVerificationError, match="inner return code"):
         decode_node_command(result, "gpu01")
+
+
+def test_runtime_verifier_rejects_artifact_tampering_before_collection(tmp_path: Path) -> None:
+    expected = _write_deployed_build(tmp_path)
+    (tmp_path / "expected-state.json").write_text("{}", encoding="utf-8")
+
+    with pytest.raises(RuntimeVerificationError, match="differs from manifest"):
+        RuntimeVerifier(PassingRuntime(expected)).verify(tmp_path)

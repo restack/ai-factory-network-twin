@@ -180,6 +180,10 @@ def test_malformed_netbox_values_use_structured_source_error(
 def test_lab_up_forwards_custom_compiler_inputs(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, dict[str, object]]] = []
 
+    class FakeLifecycle:
+        def require_absent_before_compile(self, site_dir: Path) -> None:
+            calls.append(("preflight", {"site_dir": site_dir}))
+
     def fake_compile(**kwargs: object) -> None:
         calls.append(("compile", kwargs))
 
@@ -188,6 +192,7 @@ def test_lab_up_forwards_custom_compiler_inputs(monkeypatch: pytest.MonkeyPatch)
 
     monkeypatch.setattr(cli_module, "compile", fake_compile)
     monkeypatch.setattr(cli_module, "deploy", fake_deploy)
+    monkeypatch.setattr(cli_module, "_lab_lifecycle", FakeLifecycle)
 
     with pytest.raises(SystemExit) as raised:
         main(
@@ -209,6 +214,7 @@ def test_lab_up_forwards_custom_compiler_inputs(monkeypatch: pytest.MonkeyPatch)
 
     assert raised.value.code == 0
     assert calls == [
+        ("preflight", {"site_dir": Path("build/custom-site")}),
         (
             "compile",
             {
