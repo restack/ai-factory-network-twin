@@ -32,6 +32,9 @@ def _state(phase: ScenarioPhase, *, failed: bool = False) -> ScenarioPhaseState:
 def _report(states: tuple[ScenarioPhaseState, ...], *, restored: bool = True) -> ScenarioReport:
     return ScenarioReport(
         scenario="leaf-spine-link-failure",
+        scenario_revision="a" * 64,
+        build_hash="b" * 64,
+        source_revision="c" * 64,
         failure_type=ScenarioType.LINK_DOWN,
         target=FailureTarget(node="leaf-a1", interfaces=("eth1",)),
         restored=restored,

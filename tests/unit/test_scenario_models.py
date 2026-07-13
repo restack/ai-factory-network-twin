@@ -120,3 +120,27 @@ def test_schema_rejects_unknown_fields_and_uncovered_planes() -> None:
                 },
             }
         )
+
+
+def test_scenario_rejects_path_like_identifiers() -> None:
+    with pytest.raises(ValidationError, match="String should match pattern"):
+        FailureScenario.model_validate(
+            {
+                "name": "../../escaped-report",
+                "description": "Unsafe report path",
+                "failure": {
+                    "type": "link-down",
+                    "target": {"node": "leaf-a1", "interfaces": ["eth1"]},
+                },
+                "expected": {
+                    "surviving_planes": ["a"],
+                    "probes": [
+                        {
+                            "plane": "a",
+                            "source_node": "gpu01",
+                            "destination_node": "gpu03",
+                        }
+                    ],
+                },
+            }
+        )

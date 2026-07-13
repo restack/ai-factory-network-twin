@@ -1,5 +1,7 @@
 """Strict Git-owned failure-scenario definitions."""
 
+import hashlib
+import json
 from enum import StrEnum
 from pathlib import Path
 from typing import Literal
@@ -8,6 +10,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from aftwin.domain.enums import FabricPlane
+from aftwin.domain.types import SafeIdentifier
 
 
 class ScenarioType(StrEnum):
@@ -26,8 +29,8 @@ class ScenarioModel(BaseModel):
 class FailureTarget(ScenarioModel):
     """Runtime node and optional interfaces affected by a failure action."""
 
-    node: str = Field(min_length=1)
-    interfaces: tuple[str, ...] = ()
+    node: SafeIdentifier
+    interfaces: tuple[SafeIdentifier, ...] = ()
 
     @field_validator("interfaces")
     @classmethod
@@ -60,8 +63,8 @@ class ExpectedProbe(ScenarioModel):
     """One directed endpoint reachability check that must survive the failure."""
 
     plane: FabricPlane
-    source_node: str = Field(min_length=1)
-    destination_node: str = Field(min_length=1)
+    source_node: SafeIdentifier
+    destination_node: SafeIdentifier
 
     @model_validator(mode="after")
     def require_distinct_endpoints(self) -> "ExpectedProbe":
@@ -116,10 +119,18 @@ class FailureScenario(ScenarioModel):
     """Versioned and deterministic scenario loaded from Git-owned YAML."""
 
     schema_version: Literal[1] = 1
-    name: str = Field(min_length=1)
+    name: SafeIdentifier
     description: str = Field(min_length=1)
     failure: FailureAction
     expected: ScenarioExpectations
+
+    @property
+    def revision(self) -> str:
+        """Return a deterministic content identity for report provenance."""
+        content = json.dumps(
+            self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        )
+        return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
 def load_scenario(path: Path) -> FailureScenario:

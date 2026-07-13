@@ -2,6 +2,7 @@ import json
 from collections.abc import Sequence
 from pathlib import Path
 
+from aftwin.compiler.manifest import BuildManifest
 from aftwin.domain.enums import FabricPlane
 from aftwin.errors import RuntimeVerificationError
 from aftwin.runtime.executor import CommandResult
@@ -104,6 +105,12 @@ topology:
 """,
         encoding="utf-8",
     )
+    BuildManifest(
+        compiler_version="unit-test",
+        source_revision="c" * 64,
+        build_hash="b" * 64,
+        files=(),
+    ).write(site_dir)
     return site_dir
 
 
@@ -116,6 +123,9 @@ def test_link_failure_runs_four_phases_and_restores(tmp_path: Path) -> None:
     report = ScenarioRunner(runtime, verifier).run(site_dir, scenario)
 
     assert report.passed
+    assert report.build_hash == "b" * 64
+    assert report.source_revision == "c" * 64
+    assert len(report.scenario_revision) == 64
     assert runtime.actions == [("leaf-a1", "eth1", "down"), ("leaf-a1", "eth1", "up")]
     assert verifier.full_calls == 2
     assert (site_dir / "reports" / "scenarios" / f"{scenario.name}.json").is_file()

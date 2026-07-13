@@ -95,6 +95,9 @@ class ScenarioReport(ScenarioReportModel):
 
     schema_version: Literal[1] = 1
     scenario: str = Field(min_length=1)
+    scenario_revision: str = Field(pattern=r"^[0-9a-f]{64}$")
+    build_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_revision: str = Field(min_length=1)
     failure_type: ScenarioType
     target: FailureTarget
     restored: bool
@@ -135,6 +138,9 @@ class ScenarioReport(ScenarioReportModel):
         return {
             "schema_version": self.schema_version,
             "scenario": self.scenario,
+            "scenario_revision": self.scenario_revision,
+            "build_hash": self.build_hash,
+            "source_revision": self.source_revision,
             "failure_type": self.failure_type.value,
             "target": {
                 "node": self.target.node,

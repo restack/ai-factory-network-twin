@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Protocol, cast
 
 import yaml
+from pydantic import ValidationError
 
+from aftwin.compiler.manifest import BuildManifest
 from aftwin.domain.enums import FabricPlane
 from aftwin.errors import RuntimeVerificationError
 from aftwin.runtime.executor import CommandExecutionError
@@ -79,6 +81,13 @@ class ScenarioRunner:
 
     def run(self, site_dir: Path, scenario: FailureScenario) -> ScenarioReport:
         """Run a scenario and persist deterministic four-phase evidence."""
+        try:
+            scenario = FailureScenario.model_validate(scenario.model_dump(mode="python"))
+        except ValidationError as error:
+            raise RuntimeVerificationError(
+                "failure scenario contains unsafe identifiers"
+            ) from error
+        manifest = self._load_manifest(site_dir)
         topology = site_dir / "topology.clab.yml"
         interfaces = self._target_interfaces(topology, scenario)
         self._validate_expectations(site_dir, scenario)
@@ -173,6 +182,9 @@ class ScenarioRunner:
         recovery = self._recovery_state(site_dir, restored)
         report = ScenarioReport(
             scenario=scenario.name,
+            scenario_revision=scenario.revision,
+            build_hash=manifest.build_hash,
+            source_revision=manifest.source_revision,
             failure_type=scenario.failure.type,
             target=FailureTarget(node=scenario.failure.target.node, interfaces=interfaces),
             restored=restored,
@@ -182,6 +194,17 @@ class ScenarioRunner:
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(report.to_json(), encoding="utf-8", newline="\n")
         return report
+
+    @staticmethod
+    def _load_manifest(site_dir: Path) -> BuildManifest:
+        path = site_dir / "manifest.json"
+        try:
+            return BuildManifest.model_validate_json(path.read_text(encoding="utf-8"))
+        except (OSError, ValidationError) as error:
+            raise RuntimeVerificationError(
+                f"build manifest is unreadable or invalid: {path}",
+                details={"path": path.as_posix()},
+            ) from error
 
     def _wait_for_survival(
         self, site_dir: Path, scenario: FailureScenario
