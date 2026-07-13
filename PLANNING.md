@@ -15,7 +15,10 @@
 - **M3:** Complete and merged
 - **M4:** Complete and merged
 - **M5:** Complete and merged
-- **Next:** Post-MVP work requires an explicit backlog decision
+- **Next:** M6 platform backend abstraction and SR Linux proof of concept
+
+The post-MVP multi-vendor and assurance architecture is defined in
+[`docs/DIGITAL_TWIN_ARCHITECTURE.md`](docs/DIGITAL_TWIN_ARCHITECTURE.md).
 
 ## 1. Decision Summary
 
@@ -34,6 +37,8 @@ The initial implementation follows these decisions:
 5. The data plane begins with L3 Clos, eBGP, and ECMP.
 6. EVPN/VXLAN, RoCE/PFC/ECN, a telemetry stack, and bidirectional synchronization are outside the MVP.
 7. The project differentiates itself through AI-fabric-specific validation and reproducible verification, not by recreating a general-purpose NetBox-to-Containerlab exporter.
+8. Post-MVP executable profiles prioritize open Ethernet interoperability; InfiniBand remains a separate intent-validation domain until a credible runtime backend exists.
+9. Batfish provides optional pre-deployment configuration analysis, while SuzieQ provides optional post-deployment operational assurance. Both complement rather than replace the project verifier.
 
 ## 2. Problem Statement
 
@@ -101,7 +106,9 @@ Runtime verification
 - Link, leaf, and spine failure scenarios
 - Before-and-after convergence and reachability comparison
 - Drift detection between expected NetBox topology and runtime LLDP/interface state
+- A capability-driven platform backend contract
 - An SR Linux backend
+- A Batfish compatibility spike and pre-deployment assurance adapter
 - A basic `iperf3` workload traffic profile
 - JSON and Markdown validation reports
 
@@ -109,6 +116,10 @@ Runtime verification
 
 - Telemetry based on gNMIc, Prometheus, and Grafana
 - Topology and failure-domain visualization
+- Arista or Juniper production-like Ethernet profiles
+- SuzieQ-based multi-vendor operational assurance
+- A FortiGate HA secure-edge profile
+- A separate InfiniBand intent-validation profile
 - Multiple sites or DCI topologies
 - An EVPN/VXLAN frontend fabric profile
 - Integration labs on GitHub Actions self-hosted runners
@@ -129,12 +140,16 @@ The MVP does not implement or claim to accurately reproduce:
 - Production network configuration push
 - Bidirectional reconciliation that writes runtime state back to NetBox
 - A general-purpose multi-vendor automation framework
+- Hardware-performance equivalence between FRR or vendor virtual images and physical AI fabric switches
 
 Project descriptions should prefer:
 
 > NetBox-driven AI cluster network digital twin and validation lab
 
 over the term `AI Factory Simulator`.
+
+Detailed post-MVP fidelity boundaries, runtime profiles, and vendor roles are defined in
+[`docs/DIGITAL_TWIN_ARCHITECTURE.md`](docs/DIGITAL_TWIN_ARCHITECTURE.md).
 
 ## 6. Guiding Principles
 
@@ -614,6 +629,8 @@ ai-factory-network-twin/
 
 Do not add Nornir, Ansible, Batfish, or SuzieQ to the MVP without a demonstrated requirement. Select one YAML library before M3 based on deterministic-output tests.
 
+For post-MVP work, Batfish and SuzieQ remain optional adapters with explicit adoption gates. Batfish must parse and correctly analyze each supported renderer before that profile advertises pre-deployment assurance. SuzieQ must normalize the required runtime state without becoming a source of intended or expected state.
+
 ## 18. Testing Strategy
 
 ### 18.1 Unit Tests
@@ -798,6 +815,72 @@ AFTWIN_BUILD_DIR=build
 - Plane reachability survives one spine failure.
 - The scenario restores the original state.
 
+### M6 — Platform Backend Abstraction
+
+**Deliverables**
+
+- Capability-driven renderer and collector contracts
+- Removal of FRR-specific assumptions from the compiler and Containerlab renderer
+- SR Linux topology, configuration, readiness, and observed-state adapters
+- Profile preflight for image and capability requirements
+
+**Acceptance criteria**
+
+- The FRR golden profile remains byte-stable.
+- The same normalized fabric compiles for FRR and SR Linux.
+- Expected state remains vendor-neutral.
+- Unsupported profile capabilities fail before deployment.
+- The SR Linux golden lab establishes expected BGP sessions and reachability.
+
+### M7 — Batfish Pre-Deployment Assurance
+
+**Deliverables**
+
+- Batfish snapshot and query adapter
+- Reachability, isolation, loop, and routing-policy questions
+- Conversion of Batfish answers into project finding and evidence models
+- Compatibility fixtures for every renderer that advertises Batfish support
+
+**Acceptance criteria**
+
+- A valid supported profile passes selected Batfish questions before deployment.
+- Deliberate reachability, isolation, or routing-policy faults produce stable findings.
+- Unsupported vendor syntax disables the capability explicitly rather than producing partial assurance.
+- Batfish remains optional for the baseline compile and verify workflow.
+
+### M8 — Multi-Vendor Operational Assurance
+
+**Deliverables**
+
+- One production-like Arista or Juniper Ethernet profile
+- Vendor-specific renderer and direct state collector
+- SuzieQ inventory and collection integration
+- Normalized topology, interface, BGP, and route assertions
+- Before-and-after operational snapshots for failure scenarios
+
+**Acceptance criteria**
+
+- The selected vendor profile compiles, deploys, and verifies against the common expected state.
+- SuzieQ and direct collectors agree on the required BGP and interface state.
+- A cable, interface, or route drift is reported with its evidence source.
+- Proprietary images and credentials are not committed or required by ordinary CI.
+
+### M9 — FortiGate Secure Edge
+
+**Deliverables**
+
+- Border leaf/router and firewall domain roles
+- FortiGate HA topology and configuration backend
+- BGP, route-filter, firewall-policy, NAT, and HA expected state
+- Link, member, and primary-unit failure scenarios
+
+**Acceptance criteria**
+
+- The secure-edge profile detects missing images or licenses before deployment.
+- Expected north-south routes and policies are verified.
+- A supported HA failure preserves the documented connectivity and session expectations.
+- FortiGate remains outside the compute fabric and is not treated as a spine or leaf replacement.
+
 ## 21. Initial Backlog
 
 ### P0
@@ -823,12 +906,19 @@ AFTWIN_BUILD_DIR=build
 - Failure scenario runner
 - Drift detector
 - Markdown reports
+- Platform backend abstraction
 - SR Linux backend
+- Batfish compatibility spike and assurance adapter
 - `iperf3` traffic profile
 - Topology diagram export
 
 ### P2
 
+- Arista or Juniper Ethernet backend
+- SuzieQ operational assurance
+- FortiGate HA secure-edge profile
+- InfiniBand intent-validation profile
+- Explicit multi-vendor interoperability profile
 - Telemetry stack
 - DCI profile
 - EVPN/VXLAN profile
@@ -867,6 +957,24 @@ AFTWIN_BUILD_DIR=build
 
 **Reason:** A simpler schema is easier to adopt in other NetBox environments and avoids plugin dependencies.
 
+### ADR-006 — Ethernet Executable Twin and Separate InfiniBand Intent Domain
+
+**Decision:** Use Ethernet NOS backends for executable functional profiles. Represent InfiniBand topology and cabling in NetBox, but validate it through separate intent rules until a credible runtime backend exists.
+
+**Reason:** Arista, Juniper, SR Linux, and FRR can increase Ethernet configuration and control-plane fidelity, but they cannot reproduce InfiniBand subnet management, credits, SHARP, or adaptive routing.
+
+### ADR-007 — Layered Open-Source Assurance
+
+**Decision:** Evaluate Batfish for pre-deployment configuration analysis and SuzieQ for post-deployment operational assurance. Preserve the domain policy engine, direct collectors, and expected-state verifier as independent layers.
+
+**Reason:** Each layer answers a different question. Keeping their evidence separate prevents a third-party tool from silently becoming the source of truth or masking a profile-specific verification gap.
+
+### ADR-008 — Symmetric Default Planes and Explicit Interoperability Profiles
+
+**Decision:** Use the same NOS in both planes of each default vendor profile. Place mixed Arista, Juniper, or SR Linux combinations in a separately named interoperability profile.
+
+**Reason:** Symmetric planes are closer to common production AI-fabric operations. Mixed vendors are valuable for protocol and management interoperability testing but should not be presented as the default reference architecture.
+
 ## 23. Risks and Mitigations
 
 | Risk | Impact | Mitigation |
@@ -878,6 +986,9 @@ AFTWIN_BUILD_DIR=build
 | Integration tests require privileges | CI limitations | Separate local or self-hosted integration tests |
 | Telemetry is introduced too early | Excess dependencies | Prohibit observability dependencies until M4 passes |
 | Users assume hardware-level performance | Misleading conclusions | State the control-plane and functional-twin boundary clearly |
+| Proprietary images or licenses block reproducibility | Vendor profiles cannot run in ordinary CI | Keep FRR as the open baseline and make vendor profiles optional local or self-hosted tests |
+| Assurance tools disagree | Ambiguous validation result | Preserve evidence provenance and compare each result with the compiler-owned expected state |
+| Ethernet emulation is mistaken for InfiniBand behavior | Invalid architecture conclusions | Maintain separate executable Ethernet and InfiniBand intent-validation profiles |
 
 ## 24. Definition of Done for the MVP
 

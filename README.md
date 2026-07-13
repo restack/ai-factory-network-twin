@@ -450,6 +450,7 @@ EVPN/VXLAN, telemetry, drift detection, SR Linux, multiple sites, DCI, and workl
 ## Further reading
 
 - [`PLANNING.md`](PLANNING.md) — product thesis, architecture, milestones, and roadmap
+- [`docs/DIGITAL_TWIN_ARCHITECTURE.md`](docs/DIGITAL_TWIN_ARCHITECTURE.md) — post-MVP multi-vendor, assurance, secure-edge, and fidelity design
 - [`docs/RESEARCH.md`](docs/RESEARCH.md) — background research and design context
 - [`docs/policy-rules.md`](docs/policy-rules.md) — stable validation rule catalog
 - [`deploy/netbox/README.md`](deploy/netbox/README.md) — local NetBox lifecycle and security boundary
