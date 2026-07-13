@@ -31,21 +31,29 @@ The research is organized around the following topics:
 
 ---
 
-# 1. Directly Related Research
+# 1. Adjacent Research and Transferable Ideas
 
 ## 1.1 ScaleAcross
 
 - **Title:** ScaleAcross: Designing Multi-Data-Center Infrastructure for Geo-Distributed AI Training
 - **Authors:** Naved Inam, Aryan Alpesh Bhavsar, Masabattula Teja Nikhil, Sidharth Sharma
-- **Published:** June 2026
-- **Priority:** P0
+- **Submitted:** 11 June 2026
+- **Version:** arXiv:2606.12963v1
+- **Type:** arXiv preprint; peer-review status not confirmed
+- **Priority:** P1
 - **Links:**
-  - [https://arxiv.org/abs/2606.12963](https://arxiv.org/abs/2606.12963)
-  - [https://arxiv.org/html/2606.12963](https://arxiv.org/html/2606.12963)
+  - [https://arxiv.org/abs/2606.12963v1](https://arxiv.org/abs/2606.12963v1)
+  - [https://arxiv.org/html/2606.12963v1](https://arxiv.org/html/2606.12963v1)
+- **Artifact Status:** No complete experiment repository is linked from the paper or arXiv record.
+- **Relationship:** Adjacent research reference; not an implementation dependency, architecture
+  blueprint, or reproduction target.
+- **Project Note:** [ScaleAcross: Transferable Experiment Patterns for a Network Digital Twin](papers/scaleacross-geo-distributed-ai-training.md)
 
 ### Summary
 
-ScaleAcross presents a reproducible network emulation framework for geo-distributed AI training.
+ScaleAcross describes a software network-emulation framework for geo-distributed AI training.
+The authors characterize it as open and reproducible, but this project has not independently
+reproduced the environment or results.
 
 The implementation uses:
 
@@ -55,29 +63,36 @@ The implementation uses:
 - ECMP
 - BFD
 - WAN latency emulation
-- AllReduce communication
-- Parameter Server communication
+- QEMU-based Soft-RoCE endpoints
+- PyTorch DDP AllReduce training
+- Ray and PyTorch Parameter Server training
 
 ### Relevance
 
-This is currently the closest known research reference to the project.
+ScaleAcross is an adjacent example of combining a software network, a real but small-scale
+distributed-training workload, controlled network conditions, and measured observations.
 
-It demonstrates that Containerlab and FRR can be used to study distributed AI workload communication under controlled network conditions.
+AI Factory Network Twin is independently designed and does not reproduce the paper's topology,
+overlay, transport modification, workload, or reported performance. The useful relationship is
+limited to transferable experiment patterns.
 
 ### Lessons for This Project
 
-- Containerlab is suitable for functional AI network emulation.
-- Distributed training traffic can be approximated without physical GPUs.
-- Network failure and path diversity can be evaluated reproducibly.
-- WAN and multi-datacenter support should remain a later phase.
-- The project should not claim to reproduce ASIC, RDMA, or GPU-level performance.
+- Treat configured path diversity and observed path use as different questions.
+- Encode network failures as bounded, repeatable experiments with restoration evidence.
+- Keep workload experiments optional and separate from the core routing verifier.
+- Preserve an explicit boundary between software-network evidence and physical ASIC, RDMA, NIC,
+  or GPU performance.
+- Treat the paper's WAN, EVPN/VXLAN, Soft-RoCE, BFD, and workload choices as source-specific, not
+  as requirements for this project.
 
 ### Follow-up Questions
 
-- Is the traffic generator or experiment code publicly available?
-- How are AllReduce and Parameter Server workloads generated?
-- Which metrics are collected during failure scenarios?
-- Can the experiment model be simplified for a single-site dual-plane fabric?
+- Is a complete experiment repository available from the authors?
+- Which reported experiments can be reproduced independently from the published material?
+- Would a project-specific CPU collective or TCP flow matrix add evidence beyond routing and
+  reachability checks?
+- Which functional workload metrics would fit this project's fidelity contract?
 
 ---
 
@@ -236,27 +251,36 @@ Git should own:
 - **Priority:** P0
 - **Link:**
   - [https://github.com/srl-labs/netbox-nrx-clab](https://github.com/srl-labs/netbox-nrx-clab)
+- **Reviewed Revision:**
+  [`srl-labs/netbox-nrx-clab@a2eec5a`](https://github.com/srl-labs/netbox-nrx-clab/tree/a2eec5a56fcf818583f3e68d0349ef92a5b7900f)
+- **Relationship:** Adjacent implementation reference and comparison point; not a dependency or
+  reproduction target.
+- **Project Note:** [NetBox, NRX, and Containerlab: An Adjacent Digital-Twin Implementation Pattern](papers/netbox-nrx-containerlab-digital-twin.md)
 
 ### Summary
 
-This project demonstrates how a topology modeled in NetBox can be exported and deployed as a Containerlab digital twin.
+This project demonstrates how selected NetBox data can be exported with NRX, deployed as an SR
+Linux Containerlab replica, configured by a separate Python workflow, and used to rehearse an
+OSPF-to-IS-IS migration.
 
 ### Relevance
 
-It is the closest existing open-source implementation of the basic NetBox-to-Containerlab workflow.
+It is a concrete open-source implementation of a NetBox-to-Containerlab workflow. AI Factory
+Network Twin uses it to compare generic extraction, platform mapping, and artifact-generation
+patterns while retaining an independent architecture and validation contract.
 
 ### Lessons for This Project
 
-The AI Factory Network Twin should not compete solely as another generic topology exporter.
+Transferable comparison points include:
 
-Its differentiation should come from:
+- selecting an executable subgraph from NetBox,
+- keeping platform and interface mappings explicit,
+- generating disposable runtime artifacts from intended state, and
+- rehearsing an operational change in an executable replica.
 
-- AI fabric domain modeling
-- Dual-plane topology validation
-- Failure-domain policies
-- Expected-state generation
-- Runtime verification
-- Workload-aware test scenarios
+The project's AI-fabric domain model, deterministic compiler, policy rules, expected state,
+runtime verifier, and failure scenarios are independent project decisions rather than features
+derived from this reference.
 
 ## 3.3 NetReplica NRX
 
@@ -279,15 +303,17 @@ NRX exports NetBox topologies into formats such as Containerlab, Cisco Modeling 
 - Is it better to extend NRX or maintain a project-specific compiler?
 - Which parts can be reused without coupling the project architecture to NRX?
 
-### Current Direction
+### Independent Project Direction
 
-NRX should initially be treated as:
+NRX is treated as:
 
 - A reference implementation
 - A comparison baseline
-- A possible optional backend
+- A possible optional backend requiring a separate compatibility decision
 
-The project-specific compiler remains justified because it must create AI-fabric policies, expected state, endpoint configurations, and verification artifacts.
+The project-specific compiler is a deliberate project choice because its contract includes
+AI-fabric policies, expected state, endpoint configuration, provenance, and verification
+artifacts. This decision does not imply that NRX is deficient for its own generic export goals.
 
 ---
 
@@ -867,18 +893,20 @@ When adding a source:
 
 ---
 
-# 16. Current Research Priorities
+# 16. Current Research Follow-ups
 
-The next research tasks should be completed in this order:
+The remaining research tasks are intentionally separate from the implemented project baseline:
 
-1. Reproduce the NetBox–NRX–Containerlab example.
-2. Review the ScaleAcross topology and experiment methodology.
-3. Define the minimal NetBox schema for `mini-dual-plane`.
-4. Confirm the FRR JSON commands needed for automated verification.
-5. Prototype a Linux endpoint with Fabric A and Fabric B VRFs.
-6. Test deterministic Containerlab and FRR configuration generation.
-7. Compare custom compilation with NRX-generated output.
-8. Define initial AI-fabric policy rule IDs.
-9. Prototype one link-failure scenario.
-10. Evaluate PyTorch Gloo or MPI for collective-like traffic.
+1. Reproduce the pinned NetBox–NRX–Containerlab example as an independent comparison exercise,
+   not as an architecture or compatibility requirement.
+2. Compare NRX and project-compiler output for the same sanitized NetBox fixture.
+3. Determine whether a complete ScaleAcross experiment artifact is available from the authors;
+   do not make paper reproduction a project milestone.
+4. Decide whether workload-aware evidence adds value beyond the existing routing, isolation, and
+   failure verifier.
+5. If workload experiments are justified, compare PyTorch Gloo, MPI, and custom TCP flow matrices
+   under a project-owned fidelity and measurement contract.
 
+The earlier research on the minimal NetBox schema, FRR JSON collection, endpoint VRFs,
+deterministic generation, stable policy IDs, and reversible link/spine failures has already been
+translated into the current compiler, verifier, rule catalog, scenarios, and accepted ADRs.
