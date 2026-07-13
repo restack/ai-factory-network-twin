@@ -36,3 +36,7 @@ class LinkKind(StrEnum):
     FABRIC = "fabric"
     HOST = "host"
     MANAGEMENT = "management"
+
+
+NETWORK_ROLES = frozenset({NodeRole.SPINE, NodeRole.LEAF})
+ENDPOINT_ROLES = frozenset({NodeRole.COMPUTE, NodeRole.STORAGE})

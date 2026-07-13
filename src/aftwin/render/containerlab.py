@@ -29,7 +29,7 @@ def render_containerlab_topology(
             "image": platform["image"],
             "group": NODE_GROUPS[node.role],
         }
-        if node.role is NodeRole.COMPUTE:
+        if platform["renderer"] == "linux_endpoint":
             definition["binds"] = [
                 f"configs/endpoints/{node.name}/setup.sh:/usr/local/sbin/aftwin-endpoint-setup:ro"
             ]
@@ -39,7 +39,7 @@ def render_containerlab_topology(
                 "net.ipv4.conf.all.rp_filter": 0,
                 "net.ipv4.conf.default.rp_filter": 0,
             }
-        else:
+        elif platform["renderer"] == "frr":
             definition["binds"] = [
                 f"configs/routers/{node.name}/daemons:/etc/frr/daemons:ro",
                 f"configs/routers/{node.name}/frr.conf:/etc/frr/frr.conf:ro",
@@ -49,6 +49,8 @@ def render_containerlab_topology(
                 "net.ipv4.conf.all.rp_filter": 0,
                 "net.ipv4.conf.default.rp_filter": 0,
             }
+        else:
+            raise ValueError(f"unsupported renderer: {platform['renderer']}")
         nodes[node.name] = definition
 
     endpoint_pairs = [

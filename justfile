@@ -47,8 +47,8 @@ seed-smoke:
 validate site="aif-lab" profile="config/policies/mini-dual-plane.yaml":
     uv run aftwin validate --site {{site}} --profile {{profile}}
 
-compile site="aif-lab":
-    uv run aftwin compile --site {{site}}
+compile site="aif-lab" profile="config/policies/mini-dual-plane.yaml" platform_map="config/platform-map.yaml":
+    uv run aftwin compile --site {{site}} --profile {{profile}} --platform-map {{platform_map}}
 
 graph site="aif-lab" address="127.0.0.1:50080":
     containerlab graph \

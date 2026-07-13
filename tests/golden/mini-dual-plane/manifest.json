@@ -1,5 +1,5 @@
 {
-  "build_hash": "4f7c3b0334295204603b1b251352eddf28d119eb928bcd7494f9c9adffe1968b",
+  "build_hash": "57a0c0b4cc34f88fa33292a1a32ecb59b21adac6b16378f902181ea9f52850af",
   "compiler_version": "0.1.0",
   "files": [
     {
@@ -118,6 +118,14 @@
       "size": 5360
     }
   ],
-  "schema_version": 1,
+  "platform_map": {
+    "name": "platform-map-v1",
+    "sha256": "2d201b13845ad4f42ea6b784f7aaa7e4c455861245d3b9ac7c5c895cf7641742"
+  },
+  "policy_profile": {
+    "name": "mini-dual-plane",
+    "sha256": "55fdc4ea84c99b43fef805b7cafa96d4e73361cf85d4e4c883fe0171679a8c1b"
+  },
+  "schema_version": 2,
   "source_revision": "a4736d0373aae95f7ebb83167ef25d1516738b7e959207ee1c14c3c15872ba06"
 }

@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 
+from aftwin import cli as cli_module
 from aftwin.cli import main
 from aftwin.errors import ExitCode
 
@@ -174,3 +175,49 @@ def test_malformed_netbox_values_use_structured_source_error(
 
     assert raised.value.code == ExitCode.SOURCE_VALIDATION
     assert '"code": "source_validation_failed"' in capsys.readouterr().err
+
+
+def test_lab_up_forwards_custom_compiler_inputs(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def fake_compile(**kwargs: object) -> None:
+        calls.append(("compile", kwargs))
+
+    def fake_deploy(**kwargs: object) -> None:
+        calls.append(("deploy", kwargs))
+
+    monkeypatch.setattr(cli_module, "compile", fake_compile)
+    monkeypatch.setattr(cli_module, "deploy", fake_deploy)
+
+    with pytest.raises(SystemExit) as raised:
+        main(
+            [
+                "lab",
+                "up",
+                "--site",
+                "custom-site",
+                "--tag",
+                "custom-tag",
+                "--profile",
+                "profiles/custom.yaml",
+                "--platform-map",
+                "platforms/custom.yaml",
+                "--output",
+                "json",
+            ]
+        )
+
+    assert raised.value.code == 0
+    assert calls == [
+        (
+            "compile",
+            {
+                "site": "custom-site",
+                "tag": "custom-tag",
+                "profile": Path("profiles/custom.yaml"),
+                "platform_map": Path("platforms/custom.yaml"),
+                "output": "json",
+            },
+        ),
+        ("deploy", {"site": "custom-site", "output": "json"}),
+    ]

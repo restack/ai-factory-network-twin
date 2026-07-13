@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from aftwin.domain.enums import FabricPlane, LinkKind, NodeRole
+from aftwin.domain.enums import ENDPOINT_ROLES, FabricPlane, LinkKind, NodeRole
 from aftwin.domain.models import Fabric, Interface, Link, LinkEndpoint, Node
 from aftwin.policy.profile import PolicyProfile
 
@@ -181,22 +181,26 @@ def _endpoint_prefixes(
     for link in fabric.links:
         if link.kind is not LinkKind.HOST:
             continue
-        sides = _link_sides(link, nodes, NodeRole.COMPUTE, NodeRole.LEAF)
-        if sides is None:
-            raise ValueError("host links must connect one compute endpoint and one leaf")
-        compute_endpoint, leaf_endpoint = sides
-        compute_address = _interface_address(interfaces, compute_endpoint)
+        endpoint_a_node = nodes[link.endpoint_a.node]
+        endpoint_b_node = nodes[link.endpoint_b.node]
+        if endpoint_a_node.role in ENDPOINT_ROLES and endpoint_b_node.role is NodeRole.LEAF:
+            endpoint, leaf_endpoint = link.endpoint_a, link.endpoint_b
+        elif endpoint_b_node.role in ENDPOINT_ROLES and endpoint_a_node.role is NodeRole.LEAF:
+            endpoint, leaf_endpoint = link.endpoint_b, link.endpoint_a
+        else:
+            raise ValueError("host links must connect one compute or storage endpoint and one leaf")
+        endpoint_address = _interface_address(interfaces, endpoint)
         leaf_address = _interface_address(interfaces, leaf_endpoint)
-        if compute_address.network != leaf_address.network:
+        if endpoint_address.network != leaf_address.network:
             raise ValueError("host link endpoints must share one prefix")
         endpoints.append(
             EndpointPrefix(
-                node=compute_endpoint.node,
-                interface=compute_endpoint.interface,
+                node=endpoint.node,
+                interface=endpoint.interface,
                 plane=link.plane,
                 vrf=f"fabric-{link.plane.value}",
-                address=compute_address.ip,
-                prefix=compute_address.network,
+                address=endpoint_address.ip,
+                prefix=endpoint_address.network,
                 gateway=leaf_address.ip,
                 attached_leaf=leaf_endpoint.node,
             )

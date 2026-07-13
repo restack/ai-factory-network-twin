@@ -9,8 +9,8 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from aftwin.compiler.expected_state import generate_expected_state, render_expected_state
-from aftwin.compiler.manifest import BuildManifest, InventoryMetadata
-from aftwin.domain.enums import NodeRole
+from aftwin.compiler.manifest import BuildInputIdentity, BuildManifest, InventoryMetadata
+from aftwin.domain.enums import ENDPOINT_ROLES
 from aftwin.domain.models import Fabric
 from aftwin.render.containerlab import render_containerlab_topology
 from aftwin.render.endpoint import render_endpoint_setup
@@ -134,7 +134,7 @@ def compile_fabric(
         raise ValueError(f"unsupported platforms: {', '.join(unsupported)}")
     for node in fabric.nodes:
         mapping = platform_map.platforms[node.platform]
-        expected_renderer = "linux_endpoint" if node.role is NodeRole.COMPUTE else "frr"
+        expected_renderer = "linux_endpoint" if node.role in ENDPOINT_ROLES else "frr"
         if mapping.renderer != expected_renderer:
             raise ValueError(
                 f"platform {node.platform!r} uses renderer {mapping.renderer!r}; "
@@ -150,22 +150,33 @@ def compile_fabric(
     }
     _write(output_dir / "topology.clab.yml", render_containerlab_topology(fabric, mappings))
     for node in sorted(fabric.nodes, key=lambda item: item.name):
-        if node.role is NodeRole.COMPUTE:
+        renderer = platform_map.platforms[node.platform].renderer
+        if renderer == "linux_endpoint":
             _write(
                 output_dir / "configs" / "endpoints" / node.name / "setup.sh",
                 render_endpoint_setup(node, expected.endpoint_prefixes),
                 executable=True,
             )
-        else:
+        elif renderer == "frr":
             router_dir = output_dir / "configs" / "routers" / node.name
             _write(router_dir / "daemons", DAEMONS)
             _write(router_dir / "frr.conf", render_frr_config(fabric, node))
+        else:
+            raise ValueError(f"unsupported renderer: {renderer}")
 
     _write(output_dir / "expected-state.json", render_expected_state(expected))
     _write(output_dir / "inventory.json", InventoryMetadata.from_fabric(fabric).to_json())
     manifest = BuildManifest.create(
         output_dir,
         source_revision=fabric.source_revision,
+        policy_profile=BuildInputIdentity.from_payload(
+            profile.name,
+            profile.model_dump(mode="python"),
+        ),
+        platform_map=BuildInputIdentity.from_payload(
+            f"platform-map-v{platform_map.schema_version}",
+            platform_map.model_dump(mode="python"),
+        ),
         paths=_manifest_paths(output_dir),
     )
     manifest.write(output_dir)

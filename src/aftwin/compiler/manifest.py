@@ -3,8 +3,9 @@
 import hashlib
 import json
 from collections.abc import Iterable, Mapping
+from enum import Enum
 from pathlib import Path, PurePosixPath
-from typing import Any, Self
+from typing import Any, Literal, Self, cast
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -31,6 +32,28 @@ def sha256_file(path: Path) -> str:
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:
     return json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+
+
+def _canonical_input(value: Any) -> Any:
+    """Normalize typed model data, including unordered sets, for stable hashing."""
+    if isinstance(value, Mapping):
+        mapping = cast(Mapping[object, object], value)
+        return {
+            str(key.value if isinstance(key, Enum) else key): _canonical_input(item)
+            for key, item in mapping.items()
+        }
+    if isinstance(value, (set, frozenset)):
+        values = cast(set[object] | frozenset[object], value)
+        normalized = [_canonical_input(item) for item in values]
+        return sorted(normalized, key=lambda item: json.dumps(item, sort_keys=True))
+    if isinstance(value, (list, tuple)):
+        values = cast(list[object] | tuple[object, ...], value)
+        return [_canonical_input(item) for item in values]
+    if isinstance(value, Enum):
+        return value.value
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
 
 
 def _relative_path(root: Path, path: str | Path) -> tuple[str, Path]:
@@ -129,14 +152,37 @@ class InventoryMetadata(BaseModel):
         return _canonical_json(self.model_dump(mode="json"))
 
 
+class BuildInputIdentity(BaseModel):
+    """Stable semantic identity for one Git-owned compiler input."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    name: str = Field(min_length=1)
+    sha256: str = Field(pattern=SHA256_PATTERN)
+
+    @classmethod
+    def from_payload(cls, name: str, payload: Mapping[str, Any]) -> Self:
+        """Hash a validated input's canonical JSON representation."""
+        content = _canonical_json(_canonical_input(payload)).encode("utf-8")
+        return cls(name=name, sha256=sha256_bytes(content))
+
+
+UNSPECIFIED_INPUT = BuildInputIdentity(
+    name="unspecified",
+    sha256=sha256_bytes(b""),
+)
+
+
 class BuildManifest(BaseModel):
     """Content-derived identity of one complete compiler output."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: int = Field(default=1, ge=1)
+    schema_version: Literal[2] = 2
     compiler_version: str = Field(min_length=1)
     source_revision: str = Field(min_length=1)
+    policy_profile: BuildInputIdentity = UNSPECIFIED_INPUT
+    platform_map: BuildInputIdentity = UNSPECIFIED_INPUT
     build_hash: str = Field(pattern=SHA256_PATTERN)
     files: tuple[FileDigest, ...]
 
@@ -154,9 +200,11 @@ class BuildManifest(BaseModel):
         root: Path,
         *,
         source_revision: str,
+        policy_profile: BuildInputIdentity = UNSPECIFIED_INPUT,
+        platform_map: BuildInputIdentity = UNSPECIFIED_INPUT,
         compiler_version: str = __version__,
         paths: Iterable[str | Path] | None = None,
-        schema_version: int = 1,
+        schema_version: Literal[2] = 2,
     ) -> Self:
         """Hash compiler artifacts and derive a non-self-referential build ID."""
         files = collect_artifact_digests(root, paths)
@@ -164,6 +212,8 @@ class BuildManifest(BaseModel):
             "schema_version": schema_version,
             "compiler_version": compiler_version,
             "source_revision": source_revision,
+            "policy_profile": policy_profile.model_dump(mode="json"),
+            "platform_map": platform_map.model_dump(mode="json"),
             "files": [file.model_dump(mode="json") for file in files],
         }
         build_hash = sha256_bytes(_canonical_json(identity).encode("utf-8"))
@@ -171,6 +221,8 @@ class BuildManifest(BaseModel):
             schema_version=schema_version,
             compiler_version=compiler_version,
             source_revision=source_revision,
+            policy_profile=policy_profile,
+            platform_map=platform_map,
             build_hash=build_hash,
             files=files,
         )

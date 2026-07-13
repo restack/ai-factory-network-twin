@@ -12,7 +12,9 @@ from aftwin.compiler.compiler import (
     load_platform_map,
 )
 from aftwin.compiler.manifest import BuildManifest
+from aftwin.domain.enums import NodeRole
 from aftwin.netbox.fixture import fixture_to_fabric, load_fixture
+from aftwin.policy.engine import PolicyEngine
 from aftwin.policy.profile import load_policy_profile
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -186,6 +188,59 @@ def test_manifest_covers_expected_state_and_inventory(tmp_path: Path) -> None:
     } <= paths
     assert inventory["node_count"] == 12
     assert inventory["link_count"] == 16
+
+
+def test_manifest_identifies_policy_profile_and_platform_map_content(tmp_path: Path) -> None:
+    fabric = fixture_to_fabric(load_fixture(FIXTURE))
+    profile = load_policy_profile(PROFILE)
+    platform_map = load_platform_map(PLATFORMS)
+    baseline_dir = tmp_path / "baseline"
+    custom_dir = tmp_path / "custom"
+
+    compile_fabric(fabric, platform_map, profile, baseline_dir)
+    custom_profile = profile.model_copy(update={"name": "custom-profile"})
+    custom_platforms = dict(platform_map.platforms)
+    custom_platforms["frr"] = custom_platforms["frr"].model_copy(
+        update={"image": "quay.io/frrouting/frr:10.3.5"}
+    )
+    custom_platform_map = platform_map.model_copy(update={"platforms": custom_platforms})
+    compile_fabric(fabric, custom_platform_map, custom_profile, custom_dir)
+
+    baseline = BuildManifest.model_validate_json((baseline_dir / "manifest.json").read_text())
+    custom = BuildManifest.model_validate_json((custom_dir / "manifest.json").read_text())
+    assert baseline.schema_version == 2
+    assert baseline.policy_profile.name == "mini-dual-plane"
+    assert baseline.platform_map.name == "platform-map-v1"
+    assert baseline.policy_profile.sha256 != custom.policy_profile.sha256
+    assert baseline.platform_map.sha256 != custom.platform_map.sha256
+    assert baseline.build_hash != custom.build_hash
+
+
+def test_storage_endpoint_passes_policy_and_compiles(tmp_path: Path) -> None:
+    fabric = fixture_to_fabric(load_fixture(FIXTURE))
+    nodes = tuple(
+        node.model_copy(update={"role": NodeRole.STORAGE}) if node.name == "gpu01" else node
+        for node in fabric.nodes
+    )
+    storage_fabric = fabric.model_copy(update={"nodes": nodes})
+    profile = load_policy_profile(PROFILE)
+
+    report = PolicyEngine().validate(storage_fabric, profile)
+    result = compile_fabric(
+        storage_fabric,
+        load_platform_map(PLATFORMS),
+        profile,
+        tmp_path,
+    )
+    topology = yaml.safe_load((tmp_path / "topology.clab.yml").read_text())
+    expected = json.loads((tmp_path / "expected-state.json").read_text())
+
+    assert report.passed
+    assert result.node_count == 12
+    assert (tmp_path / "configs/endpoints/gpu01/setup.sh").is_file()
+    assert not (tmp_path / "configs/routers/gpu01").exists()
+    assert topology["topology"]["nodes"]["gpu01"]["group"] == "server"
+    assert sum(item["node"] == "gpu01" for item in expected["endpoint_prefixes"]) == 2
 
 
 @pytest.mark.parametrize(

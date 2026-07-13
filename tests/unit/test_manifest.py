@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from aftwin.compiler.manifest import (
+    BuildInputIdentity,
     BuildManifest,
     FileDigest,
     InventoryMetadata,
@@ -86,6 +87,35 @@ def test_manifest_identity_includes_compiler_and_source_revisions(tmp_path: Path
     )
 
     assert len({baseline.build_hash, compiler_changed.build_hash, source_changed.build_hash}) == 3
+
+
+def test_manifest_identity_includes_git_owned_compiler_inputs(tmp_path: Path) -> None:
+    _build_tree(tmp_path)
+    policy_a = BuildInputIdentity.from_payload("profile-a", {"required_planes": ["a"]})
+    policy_b = BuildInputIdentity.from_payload("profile-b", {"required_planes": ["b"]})
+    platforms_a = BuildInputIdentity.from_payload("platform-map-v1", {"frr": "10.3.4"})
+    platforms_b = BuildInputIdentity.from_payload("platform-map-v1", {"frr": "10.3.5"})
+
+    baseline = BuildManifest.create(
+        tmp_path,
+        source_revision="source-a",
+        policy_profile=policy_a,
+        platform_map=platforms_a,
+    )
+    policy_changed = BuildManifest.create(
+        tmp_path,
+        source_revision="source-a",
+        policy_profile=policy_b,
+        platform_map=platforms_a,
+    )
+    platforms_changed = BuildManifest.create(
+        tmp_path,
+        source_revision="source-a",
+        policy_profile=policy_a,
+        platform_map=platforms_b,
+    )
+
+    assert len({baseline.build_hash, policy_changed.build_hash, platforms_changed.build_hash}) == 3
 
 
 def test_artifacts_outside_build_root_are_rejected(tmp_path: Path) -> None:

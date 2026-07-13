@@ -116,7 +116,12 @@ def validate(
 
 @app.command
 def compile(
-    site: str | None = None, *, tag: str | None = None, output: OutputFormat = "human"
+    site: str | None = None,
+    *,
+    tag: str | None = None,
+    profile: Path = Path("config/policies/mini-dual-plane.yaml"),
+    platform_map: Path = Path("config/platform-map.yaml"),
+    output: OutputFormat = "human",
 ) -> None:
     """Fetch, validate, and compile topology and configuration artifacts."""
     settings = Settings()
@@ -124,12 +129,10 @@ def compile(
     tag = _resolve_optional_identifier(tag, field="tag")
     if settings.netbox_token is None:
         raise NetBoxOperationError("authenticate", "NETBOX_TOKEN is not configured")
-    profile_path = Path("config/policies/mini-dual-plane.yaml")
-    platform_map_path = Path("config/platform-map.yaml")
     try:
-        policy_profile = load_policy_profile(profile_path)
+        policy_profile = load_policy_profile(profile)
     except (OSError, ValidationError, YAMLError) as error:
-        raise PolicyProfileError(str(profile_path), str(error)) from error
+        raise PolicyProfileError(str(profile), str(error)) from error
 
     adapter = NetBoxAdapter(NetBoxClient(settings.netbox_url, settings.netbox_token))
     snapshot = adapter.fetch_site(site, tag_slug=tag)
@@ -143,8 +146,8 @@ def compile(
         print(report.to_json() if output == "json" else report.render_human(), end="")
         raise SystemExit(ExitCode.SOURCE_VALIDATION)
     try:
-        platform_map = load_platform_map(platform_map_path)
-        result = compile_fabric(fabric, platform_map, policy_profile, site_dir)
+        platform_mapping = load_platform_map(platform_map)
+        result = compile_fabric(fabric, platform_mapping, policy_profile, site_dir)
     except (OSError, ValidationError, YAMLError, TypeError, ValueError) as error:
         raise CompilationError(str(error)) from error
     payload = {
@@ -203,10 +206,21 @@ def verify(site: str | None = None, *, output: OutputFormat = "human") -> None:
 
 @lab.command(name="up")
 def lab_up(
-    site: str | None = None, *, tag: str | None = None, output: OutputFormat = "human"
+    site: str | None = None,
+    *,
+    tag: str | None = None,
+    profile: Path = Path("config/policies/mini-dual-plane.yaml"),
+    platform_map: Path = Path("config/platform-map.yaml"),
+    output: OutputFormat = "human",
 ) -> None:
     """Compile and deploy the local lab."""
-    compile(site=site, tag=tag, output=output)
+    compile(
+        site=site,
+        tag=tag,
+        profile=profile,
+        platform_map=platform_map,
+        output=output,
+    )
     deploy(site=site, output=output)
 
 

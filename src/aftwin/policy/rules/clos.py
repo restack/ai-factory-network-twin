@@ -1,11 +1,8 @@
 """Clos topology and link-role rules."""
 
-from aftwin.domain.enums import InterfaceRole, LinkKind, NodeRole
+from aftwin.domain.enums import ENDPOINT_ROLES, NETWORK_ROLES, InterfaceRole, LinkKind, NodeRole
 from aftwin.policy.findings import Finding, Severity
 from aftwin.policy.rules.context import RuleContext, link_key
-
-NETWORK_ROLES = {NodeRole.SPINE, NodeRole.LEAF}
-ENDPOINT_ROLES = {NodeRole.COMPUTE, NodeRole.STORAGE}
 
 
 def evaluate(context: RuleContext) -> list[Finding]:

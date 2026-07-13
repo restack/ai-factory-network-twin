@@ -2,12 +2,16 @@
 
 from collections import defaultdict
 
-from aftwin.domain.enums import FabricPlane, InterfaceRole, LinkKind, NodeRole
+from aftwin.domain.enums import (
+    ENDPOINT_ROLES,
+    NETWORK_ROLES,
+    FabricPlane,
+    InterfaceRole,
+    LinkKind,
+    NodeRole,
+)
 from aftwin.policy.findings import Finding, Severity
 from aftwin.policy.rules.context import RuleContext, link_key
-
-NETWORK_ROLES = {NodeRole.SPINE, NodeRole.LEAF}
-ENDPOINT_ROLES = {NodeRole.COMPUTE, NodeRole.STORAGE}
 
 
 def evaluate(context: RuleContext) -> list[Finding]:
@@ -47,7 +51,7 @@ def evaluate(context: RuleContext) -> list[Finding]:
                             severity=Severity.ERROR,
                             target=f"interface:{node.name}/{interface.name}",
                             message=(
-                                f"Compute fabric interface '{node.name}/{interface.name}' "
+                                f"Endpoint fabric interface '{node.name}/{interface.name}' "
                                 f"has invalid plane '{interface.plane.value}'."
                             ),
                             hint="Assign the interface to one plane required by the profile.",
@@ -62,7 +66,7 @@ def evaluate(context: RuleContext) -> list[Finding]:
                         severity=Severity.ERROR,
                         target=f"node:{node.name}",
                         message=(
-                            f"Compute node '{node.name}' is missing fabric interfaces for "
+                            f"Endpoint node '{node.name}' is missing fabric interfaces for "
                             f"planes: {plane_text}."
                         ),
                         hint="Add one host-facing interface in each missing plane.",
@@ -108,7 +112,9 @@ def evaluate(context: RuleContext) -> list[Finding]:
                     rule_id="PLN005",
                     severity=Severity.ERROR,
                     target=f"node:{node}",
-                    message=f"Compute node '{node}' uses leaf '{leaf}' for multiple fabric planes.",
+                    message=(
+                        f"Endpoint node '{node}' uses leaf '{leaf}' for multiple fabric planes."
+                    ),
                     hint="Connect each plane to an independent leaf device.",
                 )
             )
