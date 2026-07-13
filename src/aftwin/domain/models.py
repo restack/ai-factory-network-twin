@@ -5,6 +5,7 @@ from ipaddress import IPv4Interface
 from pydantic import BaseModel, ConfigDict, Field
 
 from aftwin.domain.enums import FabricPlane, InterfaceRole, LinkKind, NodeRole
+from aftwin.domain.types import SafeIdentifier
 
 
 class DomainModel(BaseModel):
@@ -16,7 +17,7 @@ class DomainModel(BaseModel):
 class Interface(DomainModel):
     """A normalized node interface."""
 
-    name: str
+    name: SafeIdentifier
     role: InterfaceRole
     plane: FabricPlane
     addresses: tuple[IPv4Interface, ...] = ()
@@ -25,7 +26,7 @@ class Interface(DomainModel):
 class Node(DomainModel):
     """A normalized network or endpoint node."""
 
-    name: str
+    name: SafeIdentifier
     role: NodeRole
     platform: str
     plane: FabricPlane
@@ -38,8 +39,8 @@ class Node(DomainModel):
 class LinkEndpoint(DomainModel):
     """A stable interface reference."""
 
-    node: str
-    interface: str
+    node: SafeIdentifier
+    interface: SafeIdentifier
 
 
 class Link(DomainModel):
@@ -54,8 +55,8 @@ class Link(DomainModel):
 class Fabric(DomainModel):
     """Complete normalized fabric intent for one site."""
 
-    name: str
-    site: str
+    name: SafeIdentifier
+    site: SafeIdentifier
     nodes: tuple[Node, ...]
     links: tuple[Link, ...]
     source_revision: str

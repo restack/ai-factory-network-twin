@@ -2,8 +2,10 @@
 
 import json
 import sys
+from ipaddress import ip_address
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlparse
 
 from cyclopts import App
 from pydantic import ValidationError
@@ -11,6 +13,8 @@ from yaml import YAMLError
 
 from aftwin import __version__
 from aftwin.compiler.compiler import compile_fabric, load_platform_map
+from aftwin.domain.models import Fabric
+from aftwin.domain.types import validate_identifier
 from aftwin.errors import (
     AftwinError,
     CompilationError,
@@ -26,7 +30,8 @@ from aftwin.netbox.client import NetBoxClient
 from aftwin.netbox.fixture import load_fixture
 from aftwin.netbox.seeder import NetBoxSeeder
 from aftwin.policy.engine import PolicyEngine
-from aftwin.policy.profile import load_policy_profile
+from aftwin.policy.findings import ValidationReport
+from aftwin.policy.profile import PolicyProfile, load_policy_profile
 from aftwin.runtime.containerlab import Containerlab
 from aftwin.runtime.executor import SubprocessExecutor
 from aftwin.runtime.lifecycle import LabLifecycle, LabLifecycleError
@@ -50,12 +55,16 @@ app.command(scenario_app)
 
 @app.command
 def seed(
-    fixture: Path = Path("fixtures/mini-dual-plane.yaml"), *, output: OutputFormat = "human"
+    fixture: Path = Path("fixtures/mini-dual-plane.yaml"),
+    *,
+    allow_nonlocal: bool = False,
+    output: OutputFormat = "human",
 ) -> None:
     """Idempotently seed a development NetBox fixture."""
     settings = Settings()
     if settings.netbox_token is None:
         raise NetBoxOperationError("authenticate", "NETBOX_TOKEN is not configured")
+    _require_local_seed_target(settings.netbox_url, allow_nonlocal=allow_nonlocal)
     try:
         fixture_model = load_fixture(fixture)
     except (OSError, ValidationError, YAMLError) as error:
@@ -75,13 +84,16 @@ def seed(
 
 @app.command
 def validate(
-    site: str = "aif-lab",
+    site: str | None = None,
     *,
+    tag: str | None = None,
     profile: Path = Path("config/policies/mini-dual-plane.yaml"),
     output: OutputFormat = "human",
 ) -> None:
     """Fetch, normalize, and statically validate NetBox source data."""
     settings = Settings()
+    site = _resolve_identifier(settings.site if site is None else site, field="site")
+    tag = _resolve_optional_identifier(tag, field="tag")
     if settings.netbox_token is None:
         raise NetBoxOperationError("authenticate", "NETBOX_TOKEN is not configured")
     try:
@@ -90,13 +102,9 @@ def validate(
         raise PolicyProfileError(str(profile), str(error)) from error
 
     adapter = NetBoxAdapter(NetBoxClient(settings.netbox_url, settings.netbox_token))
-    snapshot = adapter.fetch_site(site)
+    snapshot = adapter.fetch_site(site, tag_slug=tag)
     adapter.save_snapshot(snapshot, settings.build_dir / site / "source" / "netbox.json")
-    try:
-        fabric = adapter.normalize(snapshot)
-    except NetBoxOperationError as error:
-        raise SourceValidationError(error.message) from error
-    report = PolicyEngine().validate(fabric, policy_profile)
+    _, report = _normalize_and_validate(adapter, snapshot, policy_profile)
     report_path = settings.build_dir / site / "reports" / "static-validation.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(report.to_json(), encoding="utf-8", newline="\n")
@@ -107,9 +115,13 @@ def validate(
 
 
 @app.command
-def compile(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
+def compile(
+    site: str | None = None, *, tag: str | None = None, output: OutputFormat = "human"
+) -> None:
     """Fetch, validate, and compile topology and configuration artifacts."""
     settings = Settings()
+    site = _resolve_identifier(settings.site if site is None else site, field="site")
+    tag = _resolve_optional_identifier(tag, field="tag")
     if settings.netbox_token is None:
         raise NetBoxOperationError("authenticate", "NETBOX_TOKEN is not configured")
     profile_path = Path("config/policies/mini-dual-plane.yaml")
@@ -120,14 +132,10 @@ def compile(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
         raise PolicyProfileError(str(profile_path), str(error)) from error
 
     adapter = NetBoxAdapter(NetBoxClient(settings.netbox_url, settings.netbox_token))
-    snapshot = adapter.fetch_site(site)
+    snapshot = adapter.fetch_site(site, tag_slug=tag)
     site_dir = settings.build_dir / site
     adapter.save_snapshot(snapshot, site_dir / "source" / "netbox.json")
-    try:
-        fabric = adapter.normalize(snapshot)
-    except NetBoxOperationError as error:
-        raise SourceValidationError(error.message) from error
-    report = PolicyEngine().validate(fabric, policy_profile)
+    fabric, report = _normalize_and_validate(adapter, snapshot, policy_profile)
     report_path = site_dir / "reports" / "static-validation.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(report.to_json(), encoding="utf-8", newline="\n")
@@ -160,10 +168,11 @@ def compile(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
 
 @app.command
 def deploy(
-    site: str = "aif-lab", *, reconfigure: bool = False, output: OutputFormat = "human"
+    site: str | None = None, *, reconfigure: bool = False, output: OutputFormat = "human"
 ) -> None:
     """Deploy a statically validated compiled lab."""
     settings = Settings()
+    site = _resolve_identifier(settings.site if site is None else site, field="site")
     lifecycle = _lab_lifecycle()
     result = lifecycle.deploy(settings.build_dir / site, reconfigure=reconfigure)
     payload = {"site": site, "operation": "deploy", "changed": result.changed, "running": True}
@@ -174,9 +183,10 @@ def deploy(
 
 
 @app.command
-def verify(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
+def verify(site: str | None = None, *, output: OutputFormat = "human") -> None:
     """Verify BGP, routes, reachability, and plane isolation."""
     settings = Settings()
+    site = _resolve_identifier(settings.site if site is None else site, field="site")
     site_dir = settings.build_dir / site
     containerlab = _containerlab()
     try:
@@ -192,22 +202,25 @@ def verify(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
 
 
 @lab.command(name="up")
-def lab_up(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
+def lab_up(
+    site: str | None = None, *, tag: str | None = None, output: OutputFormat = "human"
+) -> None:
     """Compile and deploy the local lab."""
-    compile(site=site, output=output)
+    compile(site=site, tag=tag, output=output)
     deploy(site=site, output=output)
 
 
 @lab.command(name="test")
-def lab_test(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
+def lab_test(site: str | None = None, *, output: OutputFormat = "human") -> None:
     """Verify the local lab."""
     verify(site=site, output=output)
 
 
 @lab.command(name="down")
-def lab_down(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
+def lab_down(site: str | None = None, *, output: OutputFormat = "human") -> None:
     """Destroy the local lab and remove its runtime working directory."""
     settings = Settings()
+    site = _resolve_identifier(settings.site if site is None else site, field="site")
     result = _lab_lifecycle().destroy(settings.build_dir / site)
     payload = {
         "site": site,
@@ -226,7 +239,7 @@ def lab_down(site: str = "aif-lab", *, output: OutputFormat = "human") -> None:
 def scenario_run(
     path: Path = Path("scenarios/link-failure.yaml"),
     *,
-    site: str = "aif-lab",
+    site: str | None = None,
     output: OutputFormat = "human",
 ) -> None:
     """Run one reversible failure scenario against a healthy lab."""
@@ -237,6 +250,7 @@ def scenario_run(
             f"failure scenario is invalid: {path}", details={"path": path.as_posix()}
         ) from error
     settings = Settings()
+    site = _resolve_identifier(settings.site if site is None else site, field="site")
     site_dir = settings.build_dir / site
     containerlab = _containerlab()
     try:
@@ -259,6 +273,48 @@ def _containerlab() -> Containerlab:
 def _lab_lifecycle() -> LabLifecycle:
     """Construct the guarded lifecycle service."""
     return LabLifecycle(_containerlab())
+
+
+def _resolve_identifier(value: str, *, field: str) -> str:
+    try:
+        return validate_identifier(value, field=field)
+    except ValueError as error:
+        raise NetBoxOperationError("configure", str(error)) from error
+
+
+def _resolve_optional_identifier(value: str | None, *, field: str) -> str | None:
+    return None if value is None else _resolve_identifier(value, field=field)
+
+
+def _normalize_and_validate(
+    adapter: NetBoxAdapter, snapshot: dict[str, object], policy_profile: PolicyProfile
+) -> tuple[Fabric, ValidationReport]:
+    """Translate malformed external data into the stable source-error contract."""
+    try:
+        fabric = adapter.normalize(snapshot)
+        report = PolicyEngine().validate(fabric, policy_profile)
+    except NetBoxOperationError as error:
+        raise SourceValidationError(error.message) from error
+    except (ValueError, KeyError, StopIteration) as error:
+        raise SourceValidationError(f"{type(error).__name__}: {error}") from error
+    return fabric, report
+
+
+def _require_local_seed_target(url: str, *, allow_nonlocal: bool) -> None:
+    if allow_nonlocal:
+        return
+    hostname = urlparse(url).hostname
+    local = hostname == "localhost"
+    if hostname is not None and not local:
+        try:
+            local = ip_address(hostname).is_loopback
+        except ValueError:
+            local = False
+    if not local:
+        raise NetBoxOperationError(
+            "seed safety",
+            "refusing a non-loopback NetBox target; pass --allow-nonlocal explicitly",
+        )
 
 
 def _render_error(error: AftwinError, output: OutputFormat) -> None:

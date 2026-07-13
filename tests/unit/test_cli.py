@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -78,3 +79,98 @@ def test_scenario_invalid_path_uses_verification_exit_code(
 
     assert raised.value.code == ExitCode.VERIFICATION
     assert '"code": "runtime_verification_failed"' in capsys.readouterr().err
+
+
+def test_seed_refuses_nonlocal_netbox_without_explicit_opt_in(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("NETBOX_URL", "https://netbox.example.test")
+    monkeypatch.setenv("NETBOX_TOKEN", "secret-value")
+
+    with pytest.raises(SystemExit) as raised:
+        main(["seed"])
+
+    assert raised.value.code == ExitCode.CONFIGURATION
+    assert "refusing a non-loopback NetBox target" in capsys.readouterr().err
+
+
+def test_cli_rejects_path_like_site_before_filesystem_access(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("AFTWIN_BUILD_DIR", str(tmp_path))
+
+    with pytest.raises(SystemExit) as raised:
+        main(["deploy", "--site", "../../escaped"])
+
+    assert raised.value.code == ExitCode.CONFIGURATION
+    assert "site must start with an alphanumeric" in capsys.readouterr().err
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_validate_uses_configured_site_and_optional_tag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[str, str | None]] = []
+
+    def fake_fetch(self: object, site_slug: str, *, tag_slug: str | None = None) -> dict[str, Any]:
+        del self
+        calls.append((site_slug, tag_slug))
+        return {
+            "site": {"id": 1, "slug": site_slug},
+            "devices": [],
+            "interfaces": [],
+            "cables": [],
+            "asns": [],
+            "device_roles": [],
+            "platforms": [],
+            "tags": [],
+        }
+
+    monkeypatch.setenv("NETBOX_TOKEN", "secret-value")
+    monkeypatch.setenv("AFTWIN_SITE", "configured-site")
+    monkeypatch.setenv("AFTWIN_BUILD_DIR", str(tmp_path))
+    monkeypatch.setattr("aftwin.cli.NetBoxAdapter.fetch_site", fake_fetch)
+
+    with pytest.raises(SystemExit) as raised:
+        main(["validate", "--tag", "ai-fabric"])
+
+    assert raised.value.code == ExitCode.SOURCE_VALIDATION
+    assert calls == [("configured-site", "ai-fabric")]
+
+
+def test_malformed_netbox_values_use_structured_source_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fake_fetch(self: object, site_slug: str, *, tag_slug: str | None = None) -> dict[str, Any]:
+        del self, tag_slug
+        return {
+            "site": {"id": 1, "slug": site_slug},
+            "devices": [
+                {
+                    "id": 1,
+                    "name": "bad-node",
+                    "role": {"slug": "invalid-role"},
+                    "platform": {"slug": "frr"},
+                    "tags": [],
+                    "custom_fields": {"fabric_plane": "a"},
+                }
+            ],
+            "interfaces": [],
+            "cables": [],
+            "asns": [],
+            "device_roles": [],
+            "platforms": [],
+            "tags": [],
+        }
+
+    monkeypatch.setenv("NETBOX_TOKEN", "secret-value")
+    monkeypatch.setenv("AFTWIN_BUILD_DIR", str(tmp_path))
+    monkeypatch.setattr("aftwin.cli.NetBoxAdapter.fetch_site", fake_fetch)
+
+    with pytest.raises(SystemExit) as raised:
+        main(["validate", "--output", "json"])
+
+    assert raised.value.code == ExitCode.SOURCE_VALIDATION
+    assert '"code": "source_validation_failed"' in capsys.readouterr().err

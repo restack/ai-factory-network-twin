@@ -62,6 +62,64 @@ def _select_ids(records: list[JsonObject], ids: set[int]) -> list[JsonObject]:
     return [record for record in records if _integer(record.get("id")) in ids]
 
 
+def _fields(record: JsonObject, *names: str) -> JsonObject:
+    return {name: record[name] for name in names if name in record}
+
+
+def _relation(value: object | None, *fields: str) -> object | None:
+    if isinstance(value, dict):
+        return _fields(cast(JsonObject, value), *fields)
+    return value
+
+
+def _custom_fields(record: JsonObject, fields: dict[str, tuple[str, ...]]) -> JsonObject:
+    custom = _object(record.get("custom_fields"))
+    return {
+        name: _relation(custom[name], *nested_fields)
+        for name, nested_fields in fields.items()
+        if name in custom
+    }
+
+
+def _sanitize_site(record: JsonObject) -> JsonObject:
+    return _fields(record, "id", "slug")
+
+
+def _sanitize_device(record: JsonObject) -> JsonObject:
+    sanitized = _fields(record, "id", "name")
+    sanitized["role"] = _relation(record.get("role"), "id", "slug")
+    sanitized["platform"] = _relation(record.get("platform"), "id", "slug")
+    sanitized["tags"] = [_relation(tag, "id", "slug") for tag in _list(record.get("tags"))]
+    sanitized["custom_fields"] = _custom_fields(
+        record, {"fabric_plane": ("value",), "bgp_asn": ("id",)}
+    )
+    return sanitized
+
+
+def _sanitize_interface(record: JsonObject, addresses: list[JsonObject]) -> JsonObject:
+    sanitized = _fields(record, "id", "name")
+    sanitized["device"] = _relation(record.get("device"), "id")
+    sanitized["custom_fields"] = _custom_fields(
+        record, {"fabric_plane": ("value",), "fabric_role": ("value",)}
+    )
+    sanitized["_addresses"] = [_fields(address, "id", "address") for address in addresses]
+    return sanitized
+
+
+def _sanitize_cable(record: JsonObject) -> JsonObject:
+    sanitized = _fields(record, "id")
+    for side in ("a", "b"):
+        sanitized[f"{side}_terminations"] = [
+            _fields(_object(termination), "id", "object_id")
+            for termination in _list(record.get(f"{side}_terminations"))
+        ]
+    return sanitized
+
+
+def _sanitize_records(records: list[JsonObject], *fields: str) -> list[JsonObject]:
+    return [_fields(record, *fields) for record in records]
+
+
 def _serialize_snapshot(snapshot: JsonObject) -> str:
     return json.dumps(snapshot, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
@@ -85,39 +143,65 @@ class NetBoxAdapter:
     def __init__(self, client: ReadClient) -> None:
         self.client = client
 
-    def fetch_site(self, site_slug: str) -> JsonObject:
-        """Fetch the raw objects needed to reconstruct one site."""
-        site = self.client.one("dcim.sites", slug=site_slug)
-        if site is None:
+    def fetch_site(self, site_slug: str, *, tag_slug: str | None = None) -> JsonObject:
+        """Fetch a sanitized site snapshot, optionally narrowed by device tag."""
+        raw_site = self.client.one("dcim.sites", slug=site_slug)
+        if raw_site is None:
             raise SourceValidationError(f"site '{site_slug}' was not found")
-        site_id = _integer(site.get("id"))
-        devices = self.client.list("dcim.devices", site_id=site_id)
+        site_id = _integer(raw_site.get("id"))
+        device_filters: dict[str, object] = {"site_id": site_id}
+        if tag_slug is not None:
+            device_filters["tag"] = tag_slug
+        raw_devices = self.client.list("dcim.devices", **device_filters)
         interfaces: list[JsonObject] = []
-        for device in devices:
-            for interface in self.client.list(
+        for device in raw_devices:
+            for raw_interface in self.client.list(
                 "dcim.interfaces", device_id=_integer(device.get("id"))
             ):
-                interface["_addresses"] = self.client.list(
-                    "ipam.ip_addresses", interface_id=_integer(interface.get("id"))
+                addresses = self.client.list(
+                    "ipam.ip_addresses", interface_id=_integer(raw_interface.get("id"))
                 )
-                interfaces.append(interface)
-        role_ids = {_relation_id(device.get("role")) for device in devices}
-        platform_ids = {_relation_id(device.get("platform")) for device in devices}
-        tag_ids = {_relation_id(tag) for device in devices for tag in _list(device.get("tags"))}
+                interfaces.append(_sanitize_interface(raw_interface, addresses))
+        role_ids = {_relation_id(device.get("role")) for device in raw_devices}
+        platform_ids = {_relation_id(device.get("platform")) for device in raw_devices}
+        tag_ids = {_relation_id(tag) for device in raw_devices for tag in _list(device.get("tags"))}
         asn_ids = {
             _relation_id(asn)
-            for device in devices
+            for device in raw_devices
             if (asn := _object(device.get("custom_fields")).get("bgp_asn")) is not None
         }
+        selected_interface_ids = {_integer(interface.get("id")) for interface in interfaces}
+        raw_cables = self.client.list("dcim.cables", site_id=site_id)
+        if tag_slug is not None:
+            raw_cables = [
+                cable
+                for cable in raw_cables
+                if any(
+                    _integer(termination.get("object_id") or termination.get("id"))
+                    in selected_interface_ids
+                    for side in ("a", "b")
+                    for termination in (
+                        _object(item) for item in _list(cable.get(f"{side}_terminations"))
+                    )
+                )
+            ]
         return {
-            "site": site,
-            "devices": devices,
+            "site": _sanitize_site(raw_site),
+            "devices": [_sanitize_device(device) for device in raw_devices],
             "interfaces": interfaces,
-            "cables": self.client.list("dcim.cables", site_id=site_id),
-            "asns": _select_ids(self.client.list("ipam.asns"), asn_ids),
-            "device_roles": _select_ids(self.client.list("dcim.device_roles"), role_ids),
-            "platforms": _select_ids(self.client.list("dcim.platforms"), platform_ids),
-            "tags": _select_ids(self.client.list("extras.tags"), tag_ids),
+            "cables": [_sanitize_cable(cable) for cable in raw_cables],
+            "asns": _sanitize_records(
+                _select_ids(self.client.list("ipam.asns"), asn_ids), "id", "asn"
+            ),
+            "device_roles": _sanitize_records(
+                _select_ids(self.client.list("dcim.device_roles"), role_ids), "id", "slug"
+            ),
+            "platforms": _sanitize_records(
+                _select_ids(self.client.list("dcim.platforms"), platform_ids), "id", "slug"
+            ),
+            "tags": _sanitize_records(
+                _select_ids(self.client.list("extras.tags"), tag_ids), "id", "slug"
+            ),
         }
 
     @staticmethod
