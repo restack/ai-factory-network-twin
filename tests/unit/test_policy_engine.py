@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from aftwin.domain.enums import FabricPlane, LinkKind
-from aftwin.domain.models import Fabric, Interface, Link, LinkEndpoint, Node
+from aftwin.domain.models import Fabric, Interface, Link, LinkEndpoint, Node, SourceSelection
 from aftwin.netbox.fixture import fixture_to_fabric, load_fixture
 from aftwin.policy.engine import PolicyEngine
 from aftwin.policy.profile import PolicyProfile, load_policy_profile
@@ -87,6 +87,28 @@ def test_valid_fixture_passes_its_explicit_profile(name: str) -> None:
 
     assert report.passed
     assert report.findings == ()
+
+
+def test_source_selection_reports_ignored_interfaces_and_boundary_cables() -> None:
+    fabric, profile = _load_case("mini-dual-plane")
+    fabric = fabric.model_copy(
+        update={
+            "selection": SourceSelection(
+                selected_device_count=12,
+                included_interface_count=36,
+                ignored_interface_count=3,
+                included_cable_count=16,
+                boundary_cable_ids=(91, 90),
+            )
+        }
+    )
+
+    report = PolicyEngine().validate(fabric, profile)
+
+    assert report.passed
+    assert {finding.rule_id for finding in report.findings} == {"SRC001", "SRC002"}
+    assert report.warning_count == 1
+    assert report.info_count == 1
 
 
 def test_broken_cable_reports_stable_endpoint_rule() -> None:

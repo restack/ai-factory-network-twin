@@ -2,7 +2,7 @@
 
 from ipaddress import IPv4Interface
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from aftwin.domain.enums import FabricPlane, InterfaceRole, LinkKind, NodeRole
 from aftwin.domain.types import SafeIdentifier
@@ -52,6 +52,25 @@ class Link(DomainModel):
     kind: LinkKind
 
 
+class SourceSelection(DomainModel):
+    """Allowlisted evidence describing the NetBox subgraph selection boundary."""
+
+    selected_device_count: int = Field(ge=0)
+    included_interface_count: int = Field(ge=0)
+    ignored_interface_count: int = Field(ge=0)
+    included_cable_count: int = Field(ge=0)
+    boundary_cable_ids: tuple[int, ...] = ()
+
+    @field_validator("boundary_cable_ids")
+    @classmethod
+    def canonicalize_boundary_cables(cls, values: tuple[int, ...]) -> tuple[int, ...]:
+        if any(value < 1 for value in values):
+            raise ValueError("boundary cable IDs must be positive")
+        if len(set(values)) != len(values):
+            raise ValueError("boundary cable IDs must be unique")
+        return tuple(sorted(values))
+
+
 class Fabric(DomainModel):
     """Complete normalized fabric intent for one site."""
 
@@ -60,3 +79,4 @@ class Fabric(DomainModel):
     nodes: tuple[Node, ...]
     links: tuple[Link, ...]
     source_revision: str
+    selection: SourceSelection | None = None

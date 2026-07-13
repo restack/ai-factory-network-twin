@@ -14,6 +14,39 @@ def evaluate(context: RuleContext) -> list[Finding]:
     addresses: dict[str, list[str]] = defaultdict(list)
     asns: dict[int, list[str]] = defaultdict(list)
 
+    if context.fabric.selection is not None:
+        selection = context.fabric.selection
+        if selection.ignored_interface_count:
+            findings.append(
+                Finding(
+                    rule_id="SRC001",
+                    severity=Severity.INFO,
+                    target=f"fabric:{context.fabric.site}",
+                    message=(
+                        f"NetBox selection ignored {selection.ignored_interface_count} "
+                        "interface(s) without a fabric_role."
+                    ),
+                    hint="Add fabric_role only when an interface belongs in the executable twin.",
+                )
+            )
+        if selection.boundary_cable_ids:
+            cable_ids = ", ".join(str(value) for value in selection.boundary_cable_ids)
+            findings.append(
+                Finding(
+                    rule_id="SRC002",
+                    severity=Severity.WARNING,
+                    target=f"fabric:{context.fabric.site}",
+                    message=(
+                        f"NetBox selection found {len(selection.boundary_cable_ids)} boundary "
+                        f"cable(s) with one selected endpoint: {cable_ids}."
+                    ),
+                    hint=(
+                        "Tag and classify the peer interface to include the cable, or leave it "
+                        "outside the executable fabric boundary."
+                    ),
+                )
+            )
+
     for node in context.fabric.nodes:
         if context.profile.required_tag not in node.tags:
             findings.append(

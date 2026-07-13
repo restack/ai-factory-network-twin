@@ -114,3 +114,58 @@ def test_malformed_cable_returns_structured_error() -> None:
 
     with pytest.raises(NetBoxOperationError, match="must have one a termination"):
         NetBoxAdapter.normalize(snapshot)
+
+
+def test_normalize_classifies_management_cable() -> None:
+    snapshot: dict[str, object] = {
+        "site": {"id": 1, "slug": "lab"},
+        "devices": [
+            {
+                "id": 10,
+                "name": "spine-a1",
+                "role": {"slug": "fabric-spine"},
+                "platform": {"slug": "frr"},
+                "tags": [{"slug": "ai-fabric"}],
+                "custom_fields": {"fabric_plane": "a", "bgp_asn": 50},
+            },
+            {
+                "id": 11,
+                "name": "leaf-a1",
+                "role": {"slug": "fabric-leaf"},
+                "platform": {"slug": "frr"},
+                "tags": [{"slug": "ai-fabric"}],
+                "custom_fields": {"fabric_plane": "a", "bgp_asn": 51},
+            },
+        ],
+        "interfaces": [
+            {
+                "id": 100,
+                "name": "mgmt0",
+                "device": 10,
+                "custom_fields": {"fabric_plane": "shared", "fabric_role": "mgmt"},
+                "_addresses": [],
+            },
+            {
+                "id": 101,
+                "name": "mgmt0",
+                "device": 11,
+                "custom_fields": {"fabric_plane": "shared", "fabric_role": "mgmt"},
+                "_addresses": [],
+            },
+        ],
+        "cables": [
+            {
+                "id": 200,
+                "a_terminations": [{"object_id": 100}],
+                "b_terminations": [{"object_id": 101}],
+            }
+        ],
+        "asns": [{"id": 50, "asn": 65001}, {"id": 51, "asn": 65101}],
+        "device_roles": [],
+        "platforms": [],
+        "tags": [],
+    }
+
+    fabric = NetBoxAdapter.normalize(snapshot)
+
+    assert fabric.links[0].kind is LinkKind.MANAGEMENT

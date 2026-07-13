@@ -16,6 +16,13 @@ IDs must not be repurposed; behavioral changes require tests and release notes.
 | `GEN007` | One ASN is assigned to multiple network devices. |
 | `GEN008` | One interface terminates multiple links. |
 
+## Source Selection
+
+| ID | Condition |
+| --- | --- |
+| `SRC001` | Informational evidence reports interfaces excluded because they have no `fabric_role`. |
+| `SRC002` | A warning reports cables with exactly one endpoint inside the executable subgraph. |
+
 ## Plane
 
 | ID | Error condition |

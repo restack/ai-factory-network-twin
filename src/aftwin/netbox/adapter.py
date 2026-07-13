@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Protocol, cast
 
 from aftwin.domain.enums import FabricPlane, InterfaceRole, LinkKind, NodeRole
-from aftwin.domain.models import Fabric, Interface, Link, LinkEndpoint, Node
+from aftwin.domain.models import Fabric, Interface, Link, LinkEndpoint, Node, SourceSelection
 from aftwin.errors import NetBoxOperationError, SourceValidationError
 
 JsonObject = dict[str, object]
@@ -137,6 +137,24 @@ def _single_termination(cable: JsonObject, side: str) -> JsonObject:
     return _object(terminations[0])
 
 
+def _custom_choice(record: JsonObject, name: str) -> str | None:
+    value = _object(record.get("custom_fields")).get(name)
+    if isinstance(value, dict):
+        value = cast(JsonObject, value).get("value")
+    return value if isinstance(value, str) and value else None
+
+
+def _cable_interface_ids(cable: JsonObject) -> set[int]:
+    identifiers: set[int] = set()
+    for side in ("a", "b"):
+        for item in _list(cable.get(f"{side}_terminations")):
+            termination = _object(item)
+            identifier = termination.get("object_id") or termination.get("id")
+            if isinstance(identifier, int) and not isinstance(identifier, bool):
+                identifiers.add(identifier)
+    return identifiers
+
+
 class NetBoxAdapter:
     """Fetch one site and normalize it without exposing pynetbox records."""
 
@@ -154,10 +172,14 @@ class NetBoxAdapter:
             device_filters["tag"] = tag_slug
         raw_devices = self.client.list("dcim.devices", **device_filters)
         interfaces: list[JsonObject] = []
+        ignored_interface_count = 0
         for device in raw_devices:
             for raw_interface in self.client.list(
                 "dcim.interfaces", device_id=_integer(device.get("id"))
             ):
+                if _custom_choice(raw_interface, "fabric_role") is None:
+                    ignored_interface_count += 1
+                    continue
                 addresses = self.client.list(
                     "ipam.ip_addresses", interface_id=_integer(raw_interface.get("id"))
                 )
@@ -172,24 +194,27 @@ class NetBoxAdapter:
         }
         selected_interface_ids = {_integer(interface.get("id")) for interface in interfaces}
         raw_cables = self.client.list("dcim.cables", site_id=site_id)
-        if tag_slug is not None:
-            raw_cables = [
-                cable
-                for cable in raw_cables
-                if any(
-                    _integer(termination.get("object_id") or termination.get("id"))
-                    in selected_interface_ids
-                    for side in ("a", "b")
-                    for termination in (
-                        _object(item) for item in _list(cable.get(f"{side}_terminations"))
-                    )
-                )
-            ]
+        included_cables: list[JsonObject] = []
+        boundary_cable_ids: list[int] = []
+        for cable in raw_cables:
+            endpoint_ids = _cable_interface_ids(cable)
+            selected_endpoint_ids = endpoint_ids & selected_interface_ids
+            if endpoint_ids and endpoint_ids <= selected_interface_ids:
+                included_cables.append(cable)
+            elif selected_endpoint_ids:
+                boundary_cable_ids.append(_integer(cable.get("id")))
         return {
             "site": _sanitize_site(raw_site),
             "devices": [_sanitize_device(device) for device in raw_devices],
             "interfaces": interfaces,
-            "cables": [_sanitize_cable(cable) for cable in raw_cables],
+            "cables": [_sanitize_cable(cable) for cable in included_cables],
+            "selection": {
+                "selected_device_count": len(raw_devices),
+                "included_interface_count": len(interfaces),
+                "ignored_interface_count": ignored_interface_count,
+                "included_cable_count": len(included_cables),
+                "boundary_cable_ids": sorted(boundary_cable_ids),
+            },
             "asns": _sanitize_records(
                 _select_ids(self.client.list("ipam.asns"), asn_ids), "id", "asn"
             ),
@@ -219,6 +244,12 @@ class NetBoxAdapter:
         site = _object(snapshot.get("site"))
         device_records = [_object(item) for item in _list(snapshot.get("devices"))]
         interface_records = [_object(item) for item in _list(snapshot.get("interfaces"))]
+        selection_record = snapshot.get("selection")
+        selection = (
+            SourceSelection.model_validate(selection_record)
+            if selection_record is not None
+            else None
+        )
         asn_by_id = {
             _integer(record.get("id")): _integer(record.get("asn"))
             for record in (_object(item) for item in _list(snapshot.get("asns")))
@@ -330,12 +361,20 @@ class NetBoxAdapter:
                 for interface in node.interfaces
                 if interface.name == a.interface
             )
-            endpoint_nodes = [node for node in nodes if node.name in {a.node, b.node}]
-            kind = (
-                LinkKind.HOST
-                if any(node.role in {NodeRole.COMPUTE, NodeRole.STORAGE} for node in endpoint_nodes)
-                else LinkKind.FABRIC
+            b_interface = next(
+                interface
+                for node in nodes
+                if node.name == b.node
+                for interface in node.interfaces
+                if interface.name == b.interface
             )
+            endpoint_nodes = [node for node in nodes if node.name in {a.node, b.node}]
+            if {a_interface.role, b_interface.role} == {InterfaceRole.MGMT}:
+                kind = LinkKind.MANAGEMENT
+            elif any(node.role in {NodeRole.COMPUTE, NodeRole.STORAGE} for node in endpoint_nodes):
+                kind = LinkKind.HOST
+            else:
+                kind = LinkKind.FABRIC
             links.append(
                 Link(
                     endpoint_a=a,
@@ -360,4 +399,5 @@ class NetBoxAdapter:
                 )
             ),
             source_revision=revision,
+            selection=selection,
         )

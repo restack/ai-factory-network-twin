@@ -119,13 +119,14 @@ def test_fetch_site_scopes_relations_and_attaches_addresses() -> None:
     assert snapshot["device_roles"] == [{"id": 20, "slug": "fabric-spine"}]
     assert snapshot["platforms"] == [{"id": 30, "slug": "frr"}]
     assert snapshot["tags"] == [{"id": 40, "slug": "ai-fabric"}]
-    assert snapshot["cables"] == [
-        {
-            "id": 80,
-            "a_terminations": [{"object_id": 60}],
-            "b_terminations": [{"id": 61}],
-        }
-    ]
+    assert snapshot["cables"] == []
+    assert snapshot["selection"] == {
+        "selected_device_count": 1,
+        "included_interface_count": 1,
+        "ignored_interface_count": 0,
+        "included_cable_count": 0,
+        "boundary_cable_ids": [80],
+    }
     interfaces = snapshot["interfaces"]
     assert isinstance(interfaces, list)
     assert interfaces == [
@@ -181,3 +182,48 @@ def test_fetch_site_can_narrow_devices_by_tag() -> None:
     NetBoxAdapter(client).fetch_site("aif-lab", tag_slug="ai-fabric")
 
     assert ("dcim.devices", {"site_id": 1, "tag": "ai-fabric"}) in client.calls
+
+
+def test_fetch_site_ignores_unclassified_interfaces_without_address_queries() -> None:
+    client = FakeClient()
+    client.responses["dcim.interfaces"].append(
+        {
+            "id": 61,
+            "name": "unused1",
+            "device": {"id": 10},
+            "custom_fields": {},
+        }
+    )
+
+    snapshot = NetBoxAdapter(client).fetch_site("aif-lab", tag_slug="ai-fabric")
+
+    assert snapshot["selection"] == {
+        "selected_device_count": 1,
+        "included_interface_count": 1,
+        "ignored_interface_count": 1,
+        "included_cable_count": 0,
+        "boundary_cable_ids": [80],
+    }
+    assert ("ipam.ip_addresses", {"interface_id": 61}) not in client.calls
+    fabric = NetBoxAdapter.normalize(snapshot)
+    assert fabric.links == ()
+
+
+def test_fetch_site_includes_cable_only_when_both_interfaces_are_selected() -> None:
+    client = FakeClient()
+    client.responses["dcim.interfaces"].append(
+        {
+            "id": 61,
+            "name": "mgmt0",
+            "device": {"id": 10},
+            "custom_fields": {"fabric_plane": "shared", "fabric_role": "mgmt"},
+        }
+    )
+
+    snapshot = NetBoxAdapter(client).fetch_site("aif-lab", tag_slug="ai-fabric")
+
+    cables = cast(list[dict[str, object]], snapshot["cables"])
+    assert [cable["id"] for cable in cables] == [80]
+    selection = cast(dict[str, object], snapshot["selection"])
+    assert selection["included_cable_count"] == 1
+    assert selection["boundary_cable_ids"] == []
