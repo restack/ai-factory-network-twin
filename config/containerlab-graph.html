@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="static/css/tailwind.css">
+  <link rel="stylesheet" href="static/css/next.css">
+  <title>Containerlab Topology {{ .Name }}</title>
+</head>
+<body>
+  <main class="bg-white flex flex-col items-center h-screen w-screen">
+    <header class="flex flex-col py-6">
+      <h1 class="font-thin text-center text-4xl text-gray-500 w-full">
+        Containerlab Topology
+        <span class="uppercase font-light text-[#0386d2]">{{ .Name }}</span>
+      </h1>
+      <div class="flex items-center justify-center mt-4">
+        <button type="button" id="h-btn" onclick="horizontal()"
+          class="border border-[#0386d2] rounded-l-md text-[#0386d2] px-4 py-2">
+          Horizontal Layout
+        </button>
+        <button type="button" id="v-btn" onclick="vertical()"
+          class="border-t border-b border-r border-[#0386d2] rounded-r-md text-[#0386d2] px-4 py-2">
+          Vertical Layout
+        </button>
+      </div>
+    </header>
+    <div id="role-headings" class="w-full px-16 text-center text-sm font-medium text-gray-500"
+      style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));">
+      <span>Spine</span>
+      <span>Leaf</span>
+      <span>Server</span>
+    </div>
+    <div id="clab-topology" class="w-full h-full"></div>
+  </main>
+  <script>var data = '{{ .Data }}'</script>
+  <script src="static/js/next.js"></script>
+  <script src="static/js/script.js"></script>
+  <script>
+    var containerlabHorizontal = horizontal
+    var containerlabVertical = vertical
+
+    function fitStage() {
+      var fitButton = document.querySelector('[title="Fit stage"]')
+      if (fitButton) {
+        fitButton.click()
+      }
+    }
+
+    horizontal = function () {
+      document.getElementById('role-headings').style.display = 'grid'
+      containerlabHorizontal()
+      window.setTimeout(fitStage, 1200)
+    }
+
+    vertical = function () {
+      document.getElementById('role-headings').style.display = 'none'
+      containerlabVertical()
+      window.setTimeout(fitStage, 1200)
+    }
+
+    function activateDefaultLayout() {
+      var renderedNodes = document.querySelectorAll('#clab-topology g.node').length
+
+      if (renderedNodes < data.nodes.length) {
+        window.setTimeout(activateDefaultLayout, 100)
+        return
+      }
+
+      horizontal()
+    }
+
+    window.addEventListener('load', activateDefaultLayout)
+  </script>
+</body>
+</html>

@@ -37,6 +37,7 @@ just seed
 just seed  # creates no duplicates
 just validate
 just compile
+just graph  # open http://127.0.0.1:50080; stop with Ctrl+C
 just endpoint-image
 just lab-up
 just verify
@@ -60,6 +61,21 @@ required for normalization, so unrelated NetBox fields are not persisted.
 
 `just compile` writes deterministic artifacts to `build/aif-lab/`. Repeating
 the command with unchanged source produces the same `manifest.json` build hash.
+`just graph` serves the generated topology at <http://127.0.0.1:50080>. It uses
+the topology file before deployment and enriches the same Spine–Leaf–Server
+data with running Containerlab metadata after deployment. The project graph
+template starts in a labeled Spine–Leaf–Server horizontal layout; use the
+layout buttons to switch direction. The graph is a structural snapshot and
+does not display the interface/BGP health changed by failure scenarios. Restart
+`just graph` after recompiling so it reads the new topology snapshot. The graph
+server runs in the foreground and stops with `Ctrl+C`.
+
+If port `50080` is already occupied, pass an alternate loopback address:
+
+```bash
+just graph aif-lab 127.0.0.1:50081
+```
+
 The local endpoint image required by the generated topology can be prepared
 with `just endpoint-image`. Local and remote runtime images use explicit
 version tags, and the platform-map validator rejects unversioned or `latest`

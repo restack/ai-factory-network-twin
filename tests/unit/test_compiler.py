@@ -143,10 +143,13 @@ def test_topology_has_expected_shape_and_versioned_images(tmp_path: Path) -> Non
     assert len(topology["topology"]["nodes"]) == 12
     assert len(topology["topology"]["links"]) == 16
     assert topology["topology"]["nodes"]["spine-a1"]["image"] == ("quay.io/frrouting/frr:10.3.4")
+    assert topology["topology"]["nodes"]["spine-a1"]["group"] == "spine"
+    assert topology["topology"]["nodes"]["leaf-a1"]["group"] == "leaf"
     assert topology["topology"]["nodes"]["gpu01"]["exec"] == [
         "/bin/sh /usr/local/sbin/aftwin-endpoint-setup"
     ]
     assert topology["topology"]["nodes"]["gpu01"]["image"] == "aftwin-endpoint:0.1.0"
+    assert topology["topology"]["nodes"]["gpu01"]["group"] == "server"
 
 
 def test_generated_topology_is_accepted_by_containerlab_offline(tmp_path: Path) -> None:

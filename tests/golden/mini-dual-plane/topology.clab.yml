@@ -9,6 +9,7 @@ topology:
     gpu01:
       kind: linux
       image: aftwin-endpoint:0.1.0
+      group: server
       binds:
       - configs/endpoints/gpu01/setup.sh:/usr/local/sbin/aftwin-endpoint-setup:ro
       exec:
@@ -20,6 +21,7 @@ topology:
     gpu02:
       kind: linux
       image: aftwin-endpoint:0.1.0
+      group: server
       binds:
       - configs/endpoints/gpu02/setup.sh:/usr/local/sbin/aftwin-endpoint-setup:ro
       exec:
@@ -31,6 +33,7 @@ topology:
     gpu03:
       kind: linux
       image: aftwin-endpoint:0.1.0
+      group: server
       binds:
       - configs/endpoints/gpu03/setup.sh:/usr/local/sbin/aftwin-endpoint-setup:ro
       exec:
@@ -42,6 +45,7 @@ topology:
     gpu04:
       kind: linux
       image: aftwin-endpoint:0.1.0
+      group: server
       binds:
       - configs/endpoints/gpu04/setup.sh:/usr/local/sbin/aftwin-endpoint-setup:ro
       exec:
@@ -53,6 +57,7 @@ topology:
     leaf-a1:
       kind: linux
       image: quay.io/frrouting/frr:10.3.4
+      group: leaf
       binds:
       - configs/routers/leaf-a1/daemons:/etc/frr/daemons:ro
       - configs/routers/leaf-a1/frr.conf:/etc/frr/frr.conf:ro
@@ -63,6 +68,7 @@ topology:
     leaf-a2:
       kind: linux
       image: quay.io/frrouting/frr:10.3.4
+      group: leaf
       binds:
       - configs/routers/leaf-a2/daemons:/etc/frr/daemons:ro
       - configs/routers/leaf-a2/frr.conf:/etc/frr/frr.conf:ro
@@ -73,6 +79,7 @@ topology:
     leaf-b1:
       kind: linux
       image: quay.io/frrouting/frr:10.3.4
+      group: leaf
       binds:
       - configs/routers/leaf-b1/daemons:/etc/frr/daemons:ro
       - configs/routers/leaf-b1/frr.conf:/etc/frr/frr.conf:ro
@@ -83,6 +90,7 @@ topology:
     leaf-b2:
       kind: linux
       image: quay.io/frrouting/frr:10.3.4
+      group: leaf
       binds:
       - configs/routers/leaf-b2/daemons:/etc/frr/daemons:ro
       - configs/routers/leaf-b2/frr.conf:/etc/frr/frr.conf:ro
@@ -93,6 +101,7 @@ topology:
     spine-a1:
       kind: linux
       image: quay.io/frrouting/frr:10.3.4
+      group: spine
       binds:
       - configs/routers/spine-a1/daemons:/etc/frr/daemons:ro
       - configs/routers/spine-a1/frr.conf:/etc/frr/frr.conf:ro
@@ -103,6 +112,7 @@ topology:
     spine-a2:
       kind: linux
       image: quay.io/frrouting/frr:10.3.4
+      group: spine
       binds:
       - configs/routers/spine-a2/daemons:/etc/frr/daemons:ro
       - configs/routers/spine-a2/frr.conf:/etc/frr/frr.conf:ro
@@ -113,6 +123,7 @@ topology:
     spine-b1:
       kind: linux
       image: quay.io/frrouting/frr:10.3.4
+      group: spine
       binds:
       - configs/routers/spine-b1/daemons:/etc/frr/daemons:ro
       - configs/routers/spine-b1/frr.conf:/etc/frr/frr.conf:ro
@@ -123,6 +134,7 @@ topology:
     spine-b2:
       kind: linux
       image: quay.io/frrouting/frr:10.3.4
+      group: spine
       binds:
       - configs/routers/spine-b2/daemons:/etc/frr/daemons:ro
       - configs/routers/spine-b2/frr.conf:/etc/frr/frr.conf:ro

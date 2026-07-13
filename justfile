@@ -50,6 +50,12 @@ validate site="aif-lab" profile="config/policies/mini-dual-plane.yaml":
 compile site="aif-lab":
     uv run aftwin compile --site {{site}}
 
+graph site="aif-lab" address="127.0.0.1:50080":
+    containerlab graph \
+      --topo "build/{{site}}/topology.clab.yml" \
+      --template config/containerlab-graph.html \
+      --srv "{{address}}"
+
 endpoint-image:
     docker build -t aftwin-endpoint:0.1.0 deploy/endpoint
 
