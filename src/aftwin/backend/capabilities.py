@@ -12,3 +12,4 @@ class BackendCapability(StrEnum):
     BGP_OBSERVED_STATE = "bgp-observed-state"
     ROUTE_OBSERVED_STATE = "route-observed-state"
     PING_PROBE = "ping-probe"
+    BATFISH_ASSURANCE = "batfish-assurance"

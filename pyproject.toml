@@ -22,6 +22,9 @@ dependencies = [
 aftwin = "aftwin.cli:main"
 
 [dependency-groups]
+assure = [
+    "pybatfish==2025.7.7.2423",
+]
 dev = [
   "pyright>=1.1",
   "pytest>=8.3",

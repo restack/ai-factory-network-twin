@@ -13,7 +13,12 @@ from typing import Any, Literal, Protocol, Self, cast
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
-from aftwin.compiler.manifest import BuildManifest, sha256_file
+from aftwin.compiler.manifest import (
+    BuildManifest,
+    ManifestIntegrityError,
+    load_verified_manifest,
+    sha256_file,
+)
 from aftwin.errors import AftwinError, ExitCode
 from aftwin.runtime.executor import (
     CommandExecutionError,
@@ -25,6 +30,12 @@ from aftwin.runtime.images import ImagePreflight
 type JsonValue = None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
 
 DEPLOYMENT_STAMP_PATH = Path("runtime/deployment.json")
+REQUIRED_DEPLOYMENT_ARTIFACTS = (
+    "topology.clab.yml",
+    "expected-state.json",
+    "inventory.json",
+    "reports/static-validation.json",
+)
 
 
 class DeploymentStamp(BaseModel):
@@ -473,41 +484,14 @@ class LabLifecycle:
     def _require_manifest_integrity(
         site_dir: Path, *, operation: str = "deployment"
     ) -> BuildManifest:
-        manifest_path = site_dir / "manifest.json"
         try:
-            manifest = BuildManifest.model_validate_json(manifest_path.read_text(encoding="utf-8"))
-        except (OSError, ValidationError) as error:
+            return load_verified_manifest(site_dir, required=REQUIRED_DEPLOYMENT_ARTIFACTS)
+        except ManifestIntegrityError as error:
             raise LabLifecycleError(
-                "build manifest is unreadable or invalid",
+                str(error),
                 operation=operation,
-                details={"path": manifest_path.as_posix()},
+                details=dict(error.details),
             ) from error
-        required = {
-            "topology.clab.yml",
-            "expected-state.json",
-            "inventory.json",
-            "reports/static-validation.json",
-        }
-        recorded = {artifact.path for artifact in manifest.files}
-        if not required <= recorded:
-            raise LabLifecycleError(
-                "build manifest does not cover required deployment artifacts",
-                operation=operation,
-                details={"missing": sorted(required - recorded)},
-            )
-        for artifact in manifest.files:
-            path = site_dir / artifact.path
-            if (
-                not path.is_file()
-                or path.stat().st_size != artifact.size
-                or sha256_file(path) != artifact.sha256
-            ):
-                raise LabLifecycleError(
-                    f"build artifact differs from manifest: {artifact.path}",
-                    operation=operation,
-                    details={"path": artifact.path},
-                )
-        return manifest
 
     @staticmethod
     def _remove_deployment_stamp(site_dir: Path) -> None:

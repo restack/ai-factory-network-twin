@@ -46,6 +46,7 @@ class FrrBackend(PlatformBackend):
             BackendCapability.ECMP_MULTIPATH,
             BackendCapability.BGP_OBSERVED_STATE,
             BackendCapability.ROUTE_OBSERVED_STATE,
+            BackendCapability.BATFISH_ASSURANCE,
         }
     )
 
@@ -81,6 +82,11 @@ class FrrBackend(PlatformBackend):
     @property
     def collector(self) -> NetworkObservedStateCollector:
         return _COLLECTOR
+
+    def batfish_config_path(self, node_name: str) -> str:
+        # The compatibility spike admitted the raw generated frr.conf; Batfish
+        # parses its IOS-style syntax with a small, allowlisted warning set.
+        return f"configs/routers/{node_name}/frr.conf"
 
 
 _COLLECTOR = FrrObservedStateCollector()

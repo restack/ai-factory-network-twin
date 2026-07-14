@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from yaml import YAMLError
 
 from aftwin import __version__
+from aftwin.assure.runner import run_assurance
 from aftwin.compiler.compiler import compile_fabric, load_platform_map
 from aftwin.domain.models import Fabric
 from aftwin.domain.types import validate_identifier
@@ -203,6 +204,22 @@ def verify(site: str | None = None, *, output: OutputFormat = "human") -> None:
     print(report.to_json() if output == "json" else report.render_human(), end="")
     if not report.passed:
         raise SystemExit(ExitCode.VERIFICATION)
+
+
+@app.command
+def assure(
+    site: str | None = None,
+    *,
+    batfish_host: str = "localhost",
+    output: OutputFormat = "human",
+) -> None:
+    """Run optional Batfish pre-deployment assurance on the compiled build."""
+    settings = Settings()
+    site = _resolve_identifier(settings.site if site is None else site, field="site")
+    report = run_assurance(settings.build_dir / site, host=batfish_host)
+    print(report.to_json() if output == "json" else report.render_human(), end="")
+    if not report.passed:
+        raise SystemExit(ExitCode.ASSURANCE)
 
 
 @lab.command(name="up")

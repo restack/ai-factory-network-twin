@@ -96,6 +96,10 @@ class PlatformBackend(ABC):
         """Return the endpoint reachability probe argv; None when unsupported."""
         return None
 
+    def batfish_config_path(self, node_name: str) -> str | None:
+        """Return the build-relative config Batfish may parse; None when not advertised."""
+        return None
+
     @abstractmethod
     def render_node(
         self, fabric: Fabric, node: Node, expected: ExpectedState

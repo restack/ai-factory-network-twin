@@ -83,6 +83,7 @@ def _write(path: Path, content: str, *, executable: bool = False) -> None:
 def _clear_generated(root: Path) -> None:
     for relative in (
         "configs",
+        "batfish",
         "topology.clab.yml",
         "expected-state.json",
         "inventory.json",
@@ -94,9 +95,10 @@ def _clear_generated(root: Path) -> None:
             shutil.rmtree(path)
         elif path.exists():
             path.unlink()
-    runtime_report = root / "reports" / "runtime-verification.json"
-    if runtime_report.exists():
-        runtime_report.unlink()
+    for report in ("runtime-verification.json", "batfish-assurance.json"):
+        stale = root / "reports" / report
+        if stale.exists():
+            stale.unlink()
     scenario_reports = root / "reports" / "scenarios"
     if scenario_reports.is_dir():
         shutil.rmtree(scenario_reports)

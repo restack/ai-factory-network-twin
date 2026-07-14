@@ -7,7 +7,7 @@ from enum import Enum
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal, Self, cast
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from aftwin import __version__
 from aftwin.domain.models import Fabric
@@ -203,6 +203,14 @@ UNSPECIFIED_INPUT = BuildInputIdentity(
 )
 
 
+class ManifestIntegrityError(ValueError):
+    """A build's recorded identity does not match its on-disk artifacts."""
+
+    def __init__(self, reason: str, *, details: dict[str, object] | None = None) -> None:
+        super().__init__(reason)
+        self.details: dict[str, object] = details or {}
+
+
 class BuildManifest(BaseModel):
     """Content-derived identity of one complete compiler output."""
 
@@ -275,3 +283,34 @@ class BuildManifest(BaseModel):
         resolved_destination.parent.mkdir(parents=True, exist_ok=True)
         resolved_destination.write_text(self.to_json(), encoding="utf-8", newline="\n")
         return resolved_destination
+
+
+def load_verified_manifest(root: Path, *, required: Iterable[str] = ()) -> BuildManifest:
+    """Load ``manifest.json`` and prove recorded artifacts still match on disk."""
+    manifest_path = root / DEFAULT_MANIFEST_PATH
+    try:
+        manifest = BuildManifest.model_validate_json(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValidationError) as error:
+        raise ManifestIntegrityError(
+            "build manifest is unreadable or invalid",
+            details={"path": manifest_path.as_posix()},
+        ) from error
+    recorded = {artifact.path for artifact in manifest.files}
+    missing = sorted(set(required) - recorded)
+    if missing:
+        raise ManifestIntegrityError(
+            "build manifest does not cover required deployment artifacts",
+            details={"missing": missing},
+        )
+    for artifact in manifest.files:
+        path = root / artifact.path
+        if (
+            not path.is_file()
+            or path.stat().st_size != artifact.size
+            or sha256_file(path) != artifact.sha256
+        ):
+            raise ManifestIntegrityError(
+                f"build artifact differs from manifest: {artifact.path}",
+                details={"path": artifact.path},
+            )
+    return manifest

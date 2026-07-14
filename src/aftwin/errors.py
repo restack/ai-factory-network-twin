@@ -13,6 +13,7 @@ class ExitCode(IntEnum):
     COMPILE = 3
     DEPLOYMENT = 4
     VERIFICATION = 5
+    ASSURANCE = 6
     CONFIGURATION = 10
 
 
@@ -118,5 +119,17 @@ class RuntimeVerificationError(AftwinError):
             code="runtime_verification_failed",
             message=f"Runtime verification failed: {reason}",
             exit_code=ExitCode.VERIFICATION,
+            details=details or {},
+        )
+
+
+class AssuranceError(AftwinError):
+    """Pre-deployment assurance evidence could not be produced safely."""
+
+    def __init__(self, reason: str, *, details: dict[str, Any] | None = None) -> None:
+        super().__init__(
+            code="assurance_failed",
+            message=f"Pre-deployment assurance failed: {reason}",
+            exit_code=ExitCode.ASSURANCE,
             details=details or {},
         )
