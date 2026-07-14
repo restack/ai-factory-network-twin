@@ -34,6 +34,7 @@ from aftwin.policy.findings import ValidationReport
 from aftwin.policy.profile import PolicyProfile, load_policy_profile
 from aftwin.runtime.containerlab import Containerlab
 from aftwin.runtime.executor import SubprocessExecutor
+from aftwin.runtime.images import DockerImagePreflight
 from aftwin.runtime.lifecycle import LabLifecycle, LabLifecycleError
 from aftwin.scenario.models import load_scenario
 from aftwin.scenario.runner import ScenarioRunner
@@ -289,7 +290,10 @@ def _containerlab() -> Containerlab:
 
 def _lab_lifecycle() -> LabLifecycle:
     """Construct the guarded lifecycle service."""
-    return LabLifecycle(_containerlab())
+    return LabLifecycle(
+        _containerlab(),
+        image_preflight=DockerImagePreflight(SubprocessExecutor()),
+    )
 
 
 def _resolve_identifier(value: str, *, field: str) -> str:

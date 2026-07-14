@@ -1,5 +1,5 @@
 {
-  "build_hash": "98a27fe22a1dddd2d671f59d8a6a9426893ab98567ad6dadcdbcce04c91053f0",
+  "build_hash": "d6d9071a0bb599c8a2e94c1a10a4fe7cd4e6bd7c6589f84316311bef8d944d88",
   "compiler_version": "0.1.0",
   "files": [
     {
@@ -124,7 +124,7 @@
   },
   "policy_profile": {
     "name": "mini-dual-plane",
-    "sha256": "55fdc4ea84c99b43fef805b7cafa96d4e73361cf85d4e4c883fe0171679a8c1b"
+    "sha256": "4fc9e2e70e3bff1dc988b0ae1ac1b32f65aabdb583735401f653e993df9f1e3b"
   },
   "schema_version": 2,
   "source_revision": "a4736d0373aae95f7ebb83167ef25d1516738b7e959207ee1c14c3c15872ba06"

@@ -20,6 +20,7 @@ from aftwin.runtime.executor import (
     CommandFailureKind,
     CommandResult,
 )
+from aftwin.runtime.images import ImagePreflight
 
 type JsonValue = None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
 
@@ -151,8 +152,14 @@ class LifecycleResult:
 class LabLifecycle:
     """Enforce artifact, validation, collision, and cleanup lifecycle gates."""
 
-    def __init__(self, containerlab: ContainerlabRuntime) -> None:
+    def __init__(
+        self,
+        containerlab: ContainerlabRuntime,
+        *,
+        image_preflight: ImagePreflight | None = None,
+    ) -> None:
         self._containerlab = containerlab
+        self._image_preflight = image_preflight
 
     @staticmethod
     def topology_path(site_dir: Path) -> Path:
@@ -212,6 +219,7 @@ class LabLifecycle:
                 "the lab already exists; pass reconfigure=True to replace its configuration",
                 operation="deployment",
             )
+        self._require_available_images(topology)
         try:
             command = self._containerlab.deploy(topology, reconfigure=reconfigure)
         except CommandExecutionError as error:
@@ -341,6 +349,63 @@ class LabLifecycle:
                 },
             )
         return stamp
+
+    def _require_available_images(self, topology: Path) -> None:
+        """Fail with an actionable image list before Containerlab starts."""
+        if self._image_preflight is None:
+            return
+        images = self.required_images(topology)
+        try:
+            missing = self._image_preflight.missing_images(images)
+        except CommandExecutionError as error:
+            raise LabLifecycleError(
+                f"image preflight could not run: {error}",
+                operation="deployment",
+                details={"command": error.as_dict()},
+            ) from error
+        if missing:
+            raise LabLifecycleError(
+                "required container images are unavailable locally and could not be pulled",
+                operation="deployment",
+                details={
+                    "missing_images": list(missing),
+                    "hint": (
+                        "Build local images first (for example `just endpoint-image`) or "
+                        "import the vendor image from an authorized source."
+                    ),
+                },
+            )
+
+    @classmethod
+    def required_images(cls, topology: Path) -> tuple[str, ...]:
+        """Collect the unique node images declared by a generated topology."""
+        try:
+            payload: object = yaml.safe_load(topology.read_text(encoding="utf-8"))
+        except (OSError, yaml.YAMLError) as error:
+            raise LabLifecycleError(
+                "topology is unreadable or invalid", operation="deployment"
+            ) from error
+        if not isinstance(payload, dict):
+            raise LabLifecycleError("topology is not a YAML object", operation="deployment")
+        topology_data = cast(dict[str, object], payload).get("topology")
+        if not isinstance(topology_data, dict):
+            raise LabLifecycleError("topology has no node map", operation="deployment")
+        nodes = cast(dict[str, object], topology_data).get("nodes")
+        if not isinstance(nodes, dict):
+            raise LabLifecycleError("topology has no node map", operation="deployment")
+        images: list[str] = []
+        for name, definition in cast(dict[str, object], nodes).items():
+            if not isinstance(definition, dict):
+                raise LabLifecycleError(
+                    f"topology node has no definition: {name}", operation="deployment"
+                )
+            image = cast(dict[str, object], definition).get("image")
+            if not isinstance(image, str) or not image:
+                raise LabLifecycleError(
+                    f"topology node has no image: {name}", operation="deployment"
+                )
+            images.append(image)
+        return tuple(sorted(set(images)))
 
     @staticmethod
     def _require_file(path: Path, *, operation: str) -> None:

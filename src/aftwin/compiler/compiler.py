@@ -152,6 +152,26 @@ def compile_fabric(
                 f"renderer {backend.name!r}; "
                 f"node {node.name!r} requires a {required_class.value} renderer"
             )
+    capability_gaps: list[str] = []
+    for name in sorted(required):
+        backend = backends[name]
+        required_capabilities = (
+            profile.required_endpoint_capabilities
+            if backend.role_class is BackendRoleClass.ENDPOINT
+            else profile.required_network_capabilities
+        )
+        missing_capabilities = sorted(
+            capability.value for capability in required_capabilities - backend.capabilities
+        )
+        if missing_capabilities:
+            capability_gaps.append(
+                f"platform {name!r} (renderer {backend.name!r}) lacks: "
+                f"{', '.join(missing_capabilities)}"
+            )
+    if capability_gaps:
+        raise ValueError(
+            "profile capability requirements are not satisfied: " + "; ".join(capability_gaps)
+        )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     _clear_generated(output_dir)

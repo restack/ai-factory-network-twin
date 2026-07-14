@@ -6,7 +6,23 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from aftwin.backend.capabilities import BackendCapability
 from aftwin.domain.enums import FabricPlane
+
+DEFAULT_NETWORK_CAPABILITIES = frozenset(
+    {
+        BackendCapability.BGP_IPV4_UNICAST,
+        BackendCapability.ECMP_MULTIPATH,
+        BackendCapability.BGP_OBSERVED_STATE,
+        BackendCapability.ROUTE_OBSERVED_STATE,
+    }
+)
+DEFAULT_ENDPOINT_CAPABILITIES = frozenset(
+    {
+        BackendCapability.VRF_ENDPOINT,
+        BackendCapability.PING_PROBE,
+    }
+)
 
 
 class PolicyProfile(BaseModel):
@@ -22,6 +38,8 @@ class PolicyProfile(BaseModel):
     host_p2p_prefix_length: int = Field(default=31, ge=0, le=32)
     spine_count_by_plane: dict[FabricPlane, int]
     plane_address_pools: dict[FabricPlane, tuple[IPv4Network, ...]]
+    required_network_capabilities: frozenset[BackendCapability] = DEFAULT_NETWORK_CAPABILITIES
+    required_endpoint_capabilities: frozenset[BackendCapability] = DEFAULT_ENDPOINT_CAPABILITIES
 
     @field_validator("required_planes")
     @classmethod

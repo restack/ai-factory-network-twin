@@ -62,6 +62,22 @@ def test_backend_renderers_cover_every_fixture_node() -> None:
         assert all(artifact.path.startswith("configs/") for artifact in artifacts)
 
 
+def test_compile_rejects_unsatisfied_capability_requirements(tmp_path: Path) -> None:
+    fabric = fixture_to_fabric(load_fixture(FIXTURE))
+    profile = load_policy_profile(PROFILE).model_copy(
+        update={
+            "required_endpoint_capabilities": frozenset(
+                {BackendCapability.VRF_ENDPOINT, BackendCapability.BGP_IPV4_UNICAST}
+            )
+        }
+    )
+
+    with pytest.raises(ValueError, match=r"capability requirements.*linux_endpoint.*lacks"):
+        compile_fabric(fabric, load_platform_map(PLATFORMS), profile, tmp_path)
+
+    assert not (tmp_path / "topology.clab.yml").exists()
+
+
 def test_compile_rejects_role_class_mismatch(tmp_path: Path) -> None:
     fabric = fixture_to_fabric(load_fixture(FIXTURE))
     platform_map = load_platform_map(PLATFORMS)
