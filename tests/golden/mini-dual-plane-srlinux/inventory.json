@@ -1,0 +1,83 @@
+{
+  "compiler_version": "0.1.0",
+  "fabric_name": "mini-dual-plane-srlinux",
+  "link_count": 16,
+  "node_count": 12,
+  "nodes": [
+    {
+      "name": "gpu01",
+      "platform": "linux-endpoint",
+      "renderer": "linux_endpoint",
+      "role": "compute"
+    },
+    {
+      "name": "gpu02",
+      "platform": "linux-endpoint",
+      "renderer": "linux_endpoint",
+      "role": "compute"
+    },
+    {
+      "name": "gpu03",
+      "platform": "linux-endpoint",
+      "renderer": "linux_endpoint",
+      "role": "compute"
+    },
+    {
+      "name": "gpu04",
+      "platform": "linux-endpoint",
+      "renderer": "linux_endpoint",
+      "role": "compute"
+    },
+    {
+      "name": "leaf-a1",
+      "platform": "srlinux",
+      "renderer": "srlinux",
+      "role": "fabric-leaf"
+    },
+    {
+      "name": "leaf-a2",
+      "platform": "srlinux",
+      "renderer": "srlinux",
+      "role": "fabric-leaf"
+    },
+    {
+      "name": "leaf-b1",
+      "platform": "srlinux",
+      "renderer": "srlinux",
+      "role": "fabric-leaf"
+    },
+    {
+      "name": "leaf-b2",
+      "platform": "srlinux",
+      "renderer": "srlinux",
+      "role": "fabric-leaf"
+    },
+    {
+      "name": "spine-a1",
+      "platform": "srlinux",
+      "renderer": "srlinux",
+      "role": "fabric-spine"
+    },
+    {
+      "name": "spine-a2",
+      "platform": "srlinux",
+      "renderer": "srlinux",
+      "role": "fabric-spine"
+    },
+    {
+      "name": "spine-b1",
+      "platform": "srlinux",
+      "renderer": "srlinux",
+      "role": "fabric-spine"
+    },
+    {
+      "name": "spine-b2",
+      "platform": "srlinux",
+      "renderer": "srlinux",
+      "role": "fabric-spine"
+    }
+  ],
+  "schema_version": 2,
+  "site": "aif-srlinux",
+  "source_revision": "774252b5cb38fa833cd38d9f5716d4bbac282b026009373d3627235da9dd1f70"
+}

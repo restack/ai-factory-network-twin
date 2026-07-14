@@ -1,0 +1,311 @@
+schema_version: 1
+name: mini-dual-plane-srlinux
+site:
+  name: AI Factory SR Linux Lab
+  slug: aif-srlinux
+tags:
+  - ai-fabric
+  - digital-twin
+  - fixture
+devices:
+  - name: spine-a1
+    role: fabric-spine
+    platform: srlinux
+    plane: a
+    asn: 65001
+    interfaces:
+      - name: lo
+        role: loopback
+        plane: a
+        type: virtual
+        addresses: [10.255.0.1/32]
+      - name: eth1
+        role: downlink
+        plane: a
+        addresses: [10.0.0.0/31]
+      - name: eth2
+        role: downlink
+        plane: a
+        addresses: [10.0.0.2/31]
+  - name: spine-a2
+    role: fabric-spine
+    platform: srlinux
+    plane: a
+    asn: 65002
+    interfaces:
+      - name: lo
+        role: loopback
+        plane: a
+        type: virtual
+        addresses: [10.255.0.2/32]
+      - name: eth1
+        role: downlink
+        plane: a
+        addresses: [10.0.0.4/31]
+      - name: eth2
+        role: downlink
+        plane: a
+        addresses: [10.0.0.6/31]
+  - name: leaf-a1
+    role: fabric-leaf
+    platform: srlinux
+    plane: a
+    asn: 65101
+    interfaces:
+      - name: lo
+        role: loopback
+        plane: a
+        type: virtual
+        addresses: [10.255.0.101/32]
+      - name: eth1
+        role: uplink
+        plane: a
+        addresses: [10.0.0.1/31]
+      - name: eth2
+        role: uplink
+        plane: a
+        addresses: [10.0.0.5/31]
+      - name: eth3
+        role: host
+        plane: a
+        addresses: [10.0.1.0/31]
+      - name: eth4
+        role: host
+        plane: a
+        addresses: [10.0.1.2/31]
+  - name: leaf-a2
+    role: fabric-leaf
+    platform: srlinux
+    plane: a
+    asn: 65102
+    interfaces:
+      - name: lo
+        role: loopback
+        plane: a
+        type: virtual
+        addresses: [10.255.0.102/32]
+      - name: eth1
+        role: uplink
+        plane: a
+        addresses: [10.0.0.3/31]
+      - name: eth2
+        role: uplink
+        plane: a
+        addresses: [10.0.0.7/31]
+      - name: eth3
+        role: host
+        plane: a
+        addresses: [10.0.1.4/31]
+      - name: eth4
+        role: host
+        plane: a
+        addresses: [10.0.1.6/31]
+  - name: spine-b1
+    role: fabric-spine
+    platform: srlinux
+    plane: b
+    asn: 65011
+    interfaces:
+      - name: lo
+        role: loopback
+        plane: b
+        type: virtual
+        addresses: [10.255.1.1/32]
+      - name: eth1
+        role: downlink
+        plane: b
+        addresses: [10.1.0.0/31]
+      - name: eth2
+        role: downlink
+        plane: b
+        addresses: [10.1.0.2/31]
+  - name: spine-b2
+    role: fabric-spine
+    platform: srlinux
+    plane: b
+    asn: 65012
+    interfaces:
+      - name: lo
+        role: loopback
+        plane: b
+        type: virtual
+        addresses: [10.255.1.2/32]
+      - name: eth1
+        role: downlink
+        plane: b
+        addresses: [10.1.0.4/31]
+      - name: eth2
+        role: downlink
+        plane: b
+        addresses: [10.1.0.6/31]
+  - name: leaf-b1
+    role: fabric-leaf
+    platform: srlinux
+    plane: b
+    asn: 65111
+    interfaces:
+      - name: lo
+        role: loopback
+        plane: b
+        type: virtual
+        addresses: [10.255.1.101/32]
+      - name: eth1
+        role: uplink
+        plane: b
+        addresses: [10.1.0.1/31]
+      - name: eth2
+        role: uplink
+        plane: b
+        addresses: [10.1.0.5/31]
+      - name: eth3
+        role: host
+        plane: b
+        addresses: [10.1.1.0/31]
+      - name: eth4
+        role: host
+        plane: b
+        addresses: [10.1.1.2/31]
+  - name: leaf-b2
+    role: fabric-leaf
+    platform: srlinux
+    plane: b
+    asn: 65112
+    interfaces:
+      - name: lo
+        role: loopback
+        plane: b
+        type: virtual
+        addresses: [10.255.1.102/32]
+      - name: eth1
+        role: uplink
+        plane: b
+        addresses: [10.1.0.3/31]
+      - name: eth2
+        role: uplink
+        plane: b
+        addresses: [10.1.0.7/31]
+      - name: eth3
+        role: host
+        plane: b
+        addresses: [10.1.1.4/31]
+      - name: eth4
+        role: host
+        plane: b
+        addresses: [10.1.1.6/31]
+  - name: gpu01
+    role: compute
+    platform: linux-endpoint
+    plane: shared
+    interfaces:
+      - name: eth1
+        role: host
+        plane: a
+        addresses: [10.0.1.1/31]
+      - name: eth2
+        role: host
+        plane: b
+        addresses: [10.1.1.1/31]
+  - name: gpu02
+    role: compute
+    platform: linux-endpoint
+    plane: shared
+    interfaces:
+      - name: eth1
+        role: host
+        plane: a
+        addresses: [10.0.1.3/31]
+      - name: eth2
+        role: host
+        plane: b
+        addresses: [10.1.1.3/31]
+  - name: gpu03
+    role: compute
+    platform: linux-endpoint
+    plane: shared
+    interfaces:
+      - name: eth1
+        role: host
+        plane: a
+        addresses: [10.0.1.5/31]
+      - name: eth2
+        role: host
+        plane: b
+        addresses: [10.1.1.5/31]
+  - name: gpu04
+    role: compute
+    platform: linux-endpoint
+    plane: shared
+    interfaces:
+      - name: eth1
+        role: host
+        plane: a
+        addresses: [10.0.1.7/31]
+      - name: eth2
+        role: host
+        plane: b
+        addresses: [10.1.1.7/31]
+links:
+  - a: {device: spine-a1, interface: eth1}
+    b: {device: leaf-a1, interface: eth1}
+    plane: a
+    kind: fabric
+  - a: {device: spine-a1, interface: eth2}
+    b: {device: leaf-a2, interface: eth1}
+    plane: a
+    kind: fabric
+  - a: {device: spine-a2, interface: eth1}
+    b: {device: leaf-a1, interface: eth2}
+    plane: a
+    kind: fabric
+  - a: {device: spine-a2, interface: eth2}
+    b: {device: leaf-a2, interface: eth2}
+    plane: a
+    kind: fabric
+  - a: {device: spine-b1, interface: eth1}
+    b: {device: leaf-b1, interface: eth1}
+    plane: b
+    kind: fabric
+  - a: {device: spine-b1, interface: eth2}
+    b: {device: leaf-b2, interface: eth1}
+    plane: b
+    kind: fabric
+  - a: {device: spine-b2, interface: eth1}
+    b: {device: leaf-b1, interface: eth2}
+    plane: b
+    kind: fabric
+  - a: {device: spine-b2, interface: eth2}
+    b: {device: leaf-b2, interface: eth2}
+    plane: b
+    kind: fabric
+  - a: {device: leaf-a1, interface: eth3}
+    b: {device: gpu01, interface: eth1}
+    plane: a
+    kind: host
+  - a: {device: leaf-a1, interface: eth4}
+    b: {device: gpu02, interface: eth1}
+    plane: a
+    kind: host
+  - a: {device: leaf-a2, interface: eth3}
+    b: {device: gpu03, interface: eth1}
+    plane: a
+    kind: host
+  - a: {device: leaf-a2, interface: eth4}
+    b: {device: gpu04, interface: eth1}
+    plane: a
+    kind: host
+  - a: {device: leaf-b1, interface: eth3}
+    b: {device: gpu01, interface: eth2}
+    plane: b
+    kind: host
+  - a: {device: leaf-b1, interface: eth4}
+    b: {device: gpu02, interface: eth2}
+    plane: b
+    kind: host
+  - a: {device: leaf-b2, interface: eth3}
+    b: {device: gpu03, interface: eth2}
+    plane: b
+    kind: host
+  - a: {device: leaf-b2, interface: eth4}
+    b: {device: gpu04, interface: eth2}
+    plane: b
+    kind: host

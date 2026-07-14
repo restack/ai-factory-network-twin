@@ -25,6 +25,7 @@ class PlatformEntry(BaseModel):
     kind: str = Field(min_length=1)
     image: str = Field(min_length=1)
     renderer: str = Field(min_length=1)
+    type: str | None = Field(default=None, min_length=1)
 
     @field_validator("image")
     @classmethod
@@ -178,6 +179,7 @@ def compile_fabric(
     expected = generate_expected_state(fabric, profile)
     mappings = {
         name: {"kind": entry.kind, "image": entry.image}
+        | ({"type": entry.type} if entry.type is not None else {})
         for name, entry in platform_map.platforms.items()
     }
     _write(
@@ -197,13 +199,15 @@ def compile_fabric(
     manifest = BuildManifest.create(
         output_dir,
         source_revision=fabric.source_revision,
+        # exclude_none keeps semantic input identities stable when later
+        # compiler versions add optional fields that a build does not use.
         policy_profile=BuildInputIdentity.from_payload(
             profile.name,
-            profile.model_dump(mode="python"),
+            profile.model_dump(mode="python", exclude_none=True),
         ),
         platform_map=BuildInputIdentity.from_payload(
             f"platform-map-v{platform_map.schema_version}",
-            platform_map.model_dump(mode="python"),
+            platform_map.model_dump(mode="python", exclude_none=True),
         ),
         paths=_manifest_paths(output_dir),
     )

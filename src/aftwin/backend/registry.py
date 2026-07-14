@@ -6,9 +6,10 @@ from typing import Final
 from aftwin.backend.contract import PlatformBackend
 from aftwin.backend.frr import FrrBackend
 from aftwin.backend.linux_endpoint import LinuxEndpointBackend
+from aftwin.backend.srlinux import SrLinuxBackend
 
 _BACKENDS: Final[Mapping[str, PlatformBackend]] = {
-    backend.name: backend for backend in (FrrBackend(), LinuxEndpointBackend())
+    backend.name: backend for backend in (FrrBackend(), LinuxEndpointBackend(), SrLinuxBackend())
 }
 
 

@@ -35,6 +35,7 @@ def render_containerlab_topology(
             kind=platform["kind"],
             image=platform["image"],
             group=NODE_GROUPS[node.role],
+            node_type=platform.get("type"),
         )
 
     endpoint_pairs = [

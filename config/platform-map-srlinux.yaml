@@ -1,0 +1,11 @@
+schema_version: 1
+platforms:
+  srlinux:
+    kind: nokia_srlinux
+    image: ghcr.io/nokia/srlinux:24.10.1
+    renderer: srlinux
+    type: ixr-d2l
+  linux-endpoint:
+    kind: linux
+    image: aftwin-endpoint:0.1.0
+    renderer: linux_endpoint

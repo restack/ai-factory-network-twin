@@ -103,5 +103,7 @@ class PlatformBackend(ABC):
         """Render one node's deterministic configuration artifacts."""
 
     @abstractmethod
-    def containerlab_node(self, node: Node, *, kind: str, image: str, group: str) -> dict[str, Any]:
+    def containerlab_node(
+        self, node: Node, *, kind: str, image: str, group: str, node_type: str | None = None
+    ) -> dict[str, Any]:
         """Render one node's Containerlab topology body."""

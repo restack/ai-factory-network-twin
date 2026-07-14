@@ -32,7 +32,11 @@ class LinuxEndpointBackend(PlatformBackend):
             ),
         )
 
-    def containerlab_node(self, node: Node, *, kind: str, image: str, group: str) -> dict[str, Any]:
+    def containerlab_node(
+        self, node: Node, *, kind: str, image: str, group: str, node_type: str | None = None
+    ) -> dict[str, Any]:
+        if node_type is not None:
+            raise ValueError(f"the {self.name!r} backend does not support a node type override")
         return {
             "kind": kind,
             "image": image,

@@ -1,0 +1,91 @@
+{
+  "build_hash": "80acadbc5a3ac175f2e443b912bb7429db8551a6abc8df238c45812f4be9413e",
+  "compiler_version": "0.1.0",
+  "files": [
+    {
+      "path": "configs/endpoints/gpu01/setup.sh",
+      "sha256": "600b19edb1152c5a6cf0615e475907754dc759ae31122c093ef18ad87825add8",
+      "size": 658
+    },
+    {
+      "path": "configs/endpoints/gpu02/setup.sh",
+      "sha256": "3513acd4c0c845e8a8e4642ee423f568d23ee546bf8ebaa95019231ec4601178",
+      "size": 658
+    },
+    {
+      "path": "configs/endpoints/gpu03/setup.sh",
+      "sha256": "e3b05eeec3432fee078578476dd50a903e51691aa7336d5f4c944975a5a4df35",
+      "size": 658
+    },
+    {
+      "path": "configs/endpoints/gpu04/setup.sh",
+      "sha256": "702d37df4246deb616406d07c8cd1d6fed049841e99dafcdc2dcfd7bc5c06f47",
+      "size": 658
+    },
+    {
+      "path": "configs/routers/leaf-a1/srlinux.cli",
+      "sha256": "7bbe614b0b90b02143432a7824f73730caf6023471523da7ff614e21f20295b8",
+      "size": 3822
+    },
+    {
+      "path": "configs/routers/leaf-a2/srlinux.cli",
+      "sha256": "b223b4be1ece270d4b925a58dd8a5ee52f3854654fe72efdf66f4a81993640f9",
+      "size": 3822
+    },
+    {
+      "path": "configs/routers/leaf-b1/srlinux.cli",
+      "sha256": "37d394f03902289e4c9f956b78a387f6460e634d7c39168b970824e2ff464def",
+      "size": 3822
+    },
+    {
+      "path": "configs/routers/leaf-b2/srlinux.cli",
+      "sha256": "acf5330993d212eefff95b7eca98da8c94d9d4669bfb437f6b3a41c7bba39768",
+      "size": 3822
+    },
+    {
+      "path": "configs/routers/spine-a1/srlinux.cli",
+      "sha256": "596ea8f451bec82f63637129f74c3e10413f234a3847c0b402dc9c6e916a809b",
+      "size": 3012
+    },
+    {
+      "path": "configs/routers/spine-a2/srlinux.cli",
+      "sha256": "1f25d7a367d14b8a686f9a21da5bd58091b1e9f6cd587e6c9d7c4a207ca197be",
+      "size": 3012
+    },
+    {
+      "path": "configs/routers/spine-b1/srlinux.cli",
+      "sha256": "ebb23aca1c69b2cdc24a8da5f0458e72baa949b8afa98537f5fa61957f4de02d",
+      "size": 3012
+    },
+    {
+      "path": "configs/routers/spine-b2/srlinux.cli",
+      "sha256": "e5c5bf3e6739aa085b33bcc0594c8b5f25f16540afde78eced748e460fc2e5e2",
+      "size": 3012
+    },
+    {
+      "path": "expected-state.json",
+      "sha256": "f47890e5ffd61ec18901c77f4da1a3fd5b931804f080c0dd1b5a95f003e016af",
+      "size": 17367
+    },
+    {
+      "path": "inventory.json",
+      "sha256": "5ed0423ac4a9a2d621675d0581a615c3946a0c6c262590cdfa17db8cfaead311",
+      "size": 1800
+    },
+    {
+      "path": "topology.clab.yml",
+      "sha256": "1b0d78a8752934dd270eef899acf359a9b1deb7403ea002606447904a79a4bde",
+      "size": 3956
+    }
+  ],
+  "platform_map": {
+    "name": "platform-map-v1",
+    "sha256": "0b063faabc46632ee90af8f486747475f85f7146426416601e2f897b620fcb0a"
+  },
+  "policy_profile": {
+    "name": "mini-dual-plane-srlinux",
+    "sha256": "aac98c31b3354b77a537f49924a216e0102b51bcd3e0af3de2e53133f9bc3552"
+  },
+  "schema_version": 2,
+  "source_revision": "774252b5cb38fa833cd38d9f5716d4bbac282b026009373d3627235da9dd1f70"
+}
