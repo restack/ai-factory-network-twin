@@ -1,6 +1,10 @@
 set dotenv-load := true
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
+# Digest validated by the M7 Batfish compatibility spike; update it together
+# with the admitted-question evidence in tests/integration/test_batfish.py.
+batfish_image := "batfish/allinone@sha256:09817554db90e2f2674b72562c2d659427094187de0a3dfc23534ab58bf26207"
+
 default:
     @just --list
 
@@ -85,6 +89,20 @@ test-containerlab: endpoint-image
 
 test-srlinux: endpoint-image
     AFTWIN_RUN_SRLINUX_INTEGRATION=1 uv run pytest -m containerlab tests/integration/test_srlinux.py
+
+batfish-up:
+    docker rm -f aftwin-batfish >/dev/null 2>&1 || true
+    docker run -d --name aftwin-batfish \
+      -p 127.0.0.1:9996:9996 -p 127.0.0.1:9997:9997 {{batfish_image}}
+
+batfish-down:
+    docker rm -f aftwin-batfish >/dev/null 2>&1 || true
+
+assure site="aif-lab":
+    uv run aftwin assure --site {{site}}
+
+test-batfish:
+    AFTWIN_RUN_BATFISH_INTEGRATION=1 uv run pytest -m batfish
 
 demo:
     bash scripts/demo.sh

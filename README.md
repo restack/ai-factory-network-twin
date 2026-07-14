@@ -34,6 +34,8 @@ lab-down ← failure scenarios ← verify ← running digital twin
 - A capability-declared platform backend contract: the same vendor-neutral fabric and
   expected state compile to FRR or Nokia SR Linux, and per-backend collectors normalize
   observed state for one verifier.
+- Optional Batfish pre-deployment assurance that converts admitted answers into stable
+  findings and disables itself explicitly on unsupported syntax.
 - Runtime proof of BGP sessions, routes, ECMP, endpoint reachability, and cross-plane isolation.
 - Reversible link and spine failure tests with machine-readable evidence.
 
@@ -122,6 +124,29 @@ Expected state stays vendor-neutral: swapping only the platform map produces
 byte-identical `expected-state.json` for FRR and SR Linux builds of the same fabric.
 Deployment additionally checks that every required container image is present locally or
 pullable before Containerlab creates any resource.
+
+## Optional pre-deployment assurance (Batfish)
+
+For backends that advertise the capability (currently FRR), `aftwin assure` analyzes
+the compiled configuration in a local [Batfish](https://github.com/batfish/batfish)
+service before anything is deployed:
+
+```bash
+just batfish-up
+uv run aftwin assure --site aif-lab
+just batfish-down
+```
+
+The admitted questions — a parse gate with an explicit benign-warning allowlist, BGP
+session configuration and establishment prediction, forwarding-loop detection,
+derived-RIB prefix and ECMP-width checks, and cross-plane route-leak rejection — are
+converted into stable `BFA` findings (see `docs/policy-rules.md`) bound to the build
+hash. If the generated syntax falls outside the validated allowlist the capability is
+disabled explicitly instead of reporting partial assurance, and backends without the
+capability (such as SR Linux) are rejected with an actionable error. Batfish answers
+are derived evidence about generated configuration; the runtime verifier remains the
+authority for observed state, and the baseline workflow never requires Batfish or its
+optional `assure` dependency group.
 
 ## Requirements
 
@@ -415,6 +440,9 @@ Run `just` to print the available recipes.
 | `just compile`           | Generate deterministic lab and expected-state artifacts    |
 | `just graph`             | Serve the role-aware topology at port 50080                |
 | `just endpoint-image`    | Build the pinned local Linux endpoint image                |
+| `just batfish-up`        | Start the pinned local Batfish assurance service           |
+| `just assure`            | Run optional Batfish pre-deployment assurance              |
+| `just batfish-down`      | Stop the local Batfish assurance service                   |
 | `just lab-up`            | Deploy a validated, manifest-consistent build              |
 | `just verify`            | Verify BGP, routes, ECMP, reachability, and isolation      |
 | `just scenario-link`     | Test one leaf-to-spine link failure and recovery           |
@@ -423,6 +451,7 @@ Run `just` to print the available recipes.
 | `just test-netbox`       | Run the local NetBox integration suite                     |
 | `just test-containerlab` | Run the privileged Containerlab integration suite          |
 | `just test-srlinux`      | Run the privileged SR Linux backend integration suite      |
+| `just test-batfish`      | Run the Batfish assurance integration suite                |
 | `just demo`              | Run the complete disposable end-to-end demonstration       |
 
 ## Safety and reproducibility contracts
@@ -457,6 +486,14 @@ just test-srlinux
 ```
 
 Each Containerlab test deploys an ephemeral topology and always destroys it in a `finally` cleanup path. The SR Linux suite pulls the public `ghcr.io/nokia/srlinux` image on first use.
+
+Run the Batfish assurance integration tests against the pinned local service:
+
+```bash
+just batfish-up
+just test-batfish
+just batfish-down
+```
 
 The weekly and manually dispatched [privileged E2E workflow](.github/workflows/e2e.yml) runs the integration suites and the complete disposable demonstration on a self-hosted Linux runner labeled `privileged`, with Docker and Containerlab access. It uploads the compiled topology, manifest, expected state, and JSON verification and scenario reports, then removes the lab and local NetBox volumes in an unconditional cleanup step. The bundled workflow uses only the public FRR and SR Linux images and the locally built endpoint image; it does not require proprietary NOS images.
 

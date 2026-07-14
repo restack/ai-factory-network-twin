@@ -40,6 +40,7 @@ addopts = "--strict-config --strict-markers -q"
 markers = [
   "containerlab: requires Docker, Containerlab, and privileged local networking",
   "netbox: requires the local NetBox integration environment",
+  "batfish: requires a running Batfish service",
 ]
 testpaths = ["tests"]
 

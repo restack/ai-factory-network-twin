@@ -18,7 +18,11 @@
 - **M6:** Complete — capability-declared backend contract, compile/deploy preflight,
   and the SR Linux golden lab verified end to end (BGP 8/8, routes, per-plane
   reachability, isolation) alongside the byte-stable FRR baseline
-- **Next:** M7 Batfish pre-deployment assurance
+- **M7:** Complete — optional Batfish pre-deployment assurance for the FRR
+  profile: admitted parse gate, BGP session prediction, loop detection,
+  derived-RIB and cross-plane checks with stable `BFA` findings; SR Linux
+  explicitly does not advertise the capability
+- **Next:** M8 multi-vendor operational assurance
 
 The post-MVP multi-vendor and assurance architecture is defined in
 [`docs/DIGITAL_TWIN_ARCHITECTURE.md`](docs/DIGITAL_TWIN_ARCHITECTURE.md).
@@ -563,6 +567,7 @@ Exit codes:
 - `3`: compilation failure
 - `4`: deployment failure
 - `5`: runtime verification failure
+- `6`: pre-deployment assurance failure
 - `10`: configuration or authentication failure
 
 ## 16. Proposed Repository Structure

@@ -60,6 +60,25 @@ routing configuration and expected state, as recorded in ADR-007.
 The MVP domain has no shared border-node role. Every non-management cross-plane
 link therefore fails `PLN003`; management links are outside fabric-plane policy.
 
+## Pre-Deployment Assurance (Batfish)
+
+Assurance rules classify derived evidence about generated configuration; their
+reports carry `evidence_source: batfish` and `fidelity_claim:
+generated-configuration` so they are never confused with authoritative static
+findings or observed runtime state. When `BFA001` or `BFA002` fires, the
+capability is disabled explicitly and no other assurance section is reported.
+
+| ID | Error condition |
+| --- | --- |
+| `BFA001` | A configuration failed to parse or was detected as a non-admitted format. |
+| `BFA002` | Generated syntax falls outside the admitted benign-warning allowlist. |
+| `BFA003` | An expected BGP session is missing or not uniquely configured. |
+| `BFA004` | An unexpected BGP session is configured. |
+| `BFA005` | An expected BGP session is not predicted to establish. |
+| `BFA006` | A forwarding loop is derivable from the generated configuration. |
+| `BFA007` | An expected BGP prefix is absent from the derived RIB or lacks ECMP width. |
+| `BFA008` | A derived route overlaps a forbidden cross-plane address pool. |
+
 ## Target Keys
 
 Targets use a stable `<kind>:<key>` string:

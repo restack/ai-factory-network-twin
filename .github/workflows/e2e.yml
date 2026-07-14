@@ -48,6 +48,11 @@ jobs:
       - name: Run privileged SR Linux backend integration tests
         run: just test-srlinux
 
+      - name: Run Batfish pre-deployment assurance tests
+        run: |
+          just batfish-up
+          just test-batfish
+
       - name: Run disposable seed-to-scenario demonstration
         run: just demo
 
@@ -73,4 +78,5 @@ jobs:
               containerlab destroy --topo build/aif-lab/topology.clab.yml --cleanup || true
             fi
           fi
+          just batfish-down || true
           docker compose -f deploy/netbox/docker-compose.yml down --volumes --remove-orphans || true
