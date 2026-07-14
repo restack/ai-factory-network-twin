@@ -11,7 +11,10 @@ from typing import Any, TypeVar, cast
 
 from pydantic import ValidationError
 
+from aftwin.backend.contract import NetworkObservedStateCollector, PlatformBackend
+from aftwin.backend.registry import get_backend
 from aftwin.compiler.expected_state import ExpectedState
+from aftwin.compiler.manifest import InventoryMetadata
 from aftwin.domain.enums import FabricPlane
 from aftwin.errors import RuntimeVerificationError
 from aftwin.runtime.executor import CommandExecutionError, CommandResult
@@ -21,10 +24,10 @@ from aftwin.runtime.lifecycle import (
     LabLifecycle,
     LabLifecycleError,
 )
-from aftwin.verify.bgp import ObservedBgpRouter, parse_bgp_summary, verify_bgp
+from aftwin.verify.bgp import ObservedBgpRouter, verify_bgp
 from aftwin.verify.reachability import PingOutcome, parse_ping_outcome, verify_reachability
 from aftwin.verify.report import VerificationReport, VerificationSection
-from aftwin.verify.routes import ObservedRouteTable, parse_route_table, verify_routes
+from aftwin.verify.routes import ObservedRouteTable, verify_routes
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -124,10 +127,12 @@ class RuntimeVerifier:
         """Collect all live evidence, persist a report, and return it."""
         deployment = self._require_deployed_build(site_dir)
         expected = self.load_expected(site_dir)
+        backends = self._node_backends(site_dir)
         topology = site_dir / "topology.clab.yml"
-        bgp = self._wait_for_bgp(topology, expected)
-        route_tables = self._wait_for_routes(topology, expected)
-        pings = self._collect_pings(topology, expected)
+        self._wait_for_readiness(topology, expected, backends)
+        bgp = self._wait_for_bgp(topology, expected, backends)
+        route_tables = self._wait_for_routes(topology, expected, backends)
+        pings = self._collect_pings(topology, expected, backends)
         report = VerificationReport(
             build_hash=deployment.build_hash,
             source_revision=deployment.source_revision,
@@ -146,8 +151,9 @@ class RuntimeVerifier:
         """Verify only endpoint reachability and isolation for a failure scenario."""
         self._require_deployed_build(site_dir)
         expected = self.load_expected(site_dir)
+        backends = self._node_backends(site_dir)
         topology = site_dir / "topology.clab.yml"
-        pings = self._collect_pings(topology, expected)
+        pings = self._collect_pings(topology, expected, backends)
         return verify_reachability(expected.reachability, expected.isolation, pings)
 
     def reachability_contract(self, site_dir: Path) -> frozenset[tuple[FabricPlane, str, str]]:
@@ -164,6 +170,51 @@ class RuntimeVerifier:
             return LabLifecycle(self._containerlab).require_deployed_build(site_dir)
         except LabLifecycleError as error:
             raise RuntimeVerificationError(error.message, details=error.details) from error
+
+    @staticmethod
+    def _node_backends(site_dir: Path) -> dict[str, PlatformBackend]:
+        """Resolve each compiled node's backend from the build inventory."""
+        path = site_dir / "inventory.json"
+        try:
+            inventory = InventoryMetadata.model_validate_json(path.read_text(encoding="utf-8"))
+        except (OSError, ValidationError) as error:
+            raise RuntimeVerificationError(
+                f"compiled inventory is unreadable or invalid: {path}",
+                details={"path": path.as_posix()},
+            ) from error
+        if not inventory.nodes:
+            raise RuntimeVerificationError(
+                "compiled inventory has no node renderer records; recompile this build",
+                details={"path": path.as_posix()},
+            )
+        backends: dict[str, PlatformBackend] = {}
+        for record in inventory.nodes:
+            try:
+                backends[record.name] = get_backend(record.renderer)
+            except ValueError as error:
+                raise RuntimeVerificationError(
+                    f"compiled inventory names an unknown renderer for {record.name}: {error}",
+                    details={"node": record.name, "renderer": record.renderer},
+                ) from error
+        return backends
+
+    @staticmethod
+    def _collector(
+        backends: Mapping[str, PlatformBackend], router: str
+    ) -> NetworkObservedStateCollector:
+        backend = backends.get(router)
+        if backend is None:
+            raise RuntimeVerificationError(
+                f"router is not in the compiled inventory: {router}",
+                details={"node": router},
+            )
+        collector = backend.collector
+        if collector is None:
+            raise RuntimeVerificationError(
+                f"backend {backend.name!r} does not provide observed state for {router}",
+                details={"node": router, "renderer": backend.name},
+            )
+        return collector
 
     def _exec(self, topology: Path, node: str, command: Sequence[str]) -> NodeCommandResult:
         try:
@@ -191,9 +242,51 @@ class RuntimeVerifier:
             )
         )
 
-    def _collect_bgp(self, topology: Path, expected: ExpectedState) -> dict[str, ObservedBgpRouter]:
+    def _wait_for_readiness(
+        self,
+        topology: Path,
+        expected: ExpectedState,
+        backends: Mapping[str, PlatformBackend],
+    ) -> None:
+        """Poll declared backend readiness probes before collecting evidence."""
+        pending: dict[str, tuple[str, ...]] = {}
+        for router in self._routers(expected):
+            readiness = self._collector(backends, router).readiness_command()
+            if readiness is not None:
+                pending[router] = readiness
+        deadline = time.monotonic() + self._convergence_timeout_seconds
+        while pending:
+
+            def probe(item: tuple[str, tuple[str, ...]]) -> str | None:
+                router, command = item
+                try:
+                    result = self._exec(topology, router, command)
+                except RuntimeVerificationError:
+                    return None
+                return router if result.return_code == 0 else None
+
+            ready = self._parallel(probe, tuple(sorted(pending.items())))
+            for router in ready:
+                if router is not None:
+                    del pending[router]
+            if not pending:
+                return
+            if time.monotonic() >= deadline:
+                raise RuntimeVerificationError(
+                    "routers did not accept state queries before the timeout",
+                    details={"pending": sorted(pending)},
+                )
+            time.sleep(self._poll_interval_seconds)
+
+    def _collect_bgp(
+        self,
+        topology: Path,
+        expected: ExpectedState,
+        backends: Mapping[str, PlatformBackend],
+    ) -> dict[str, ObservedBgpRouter]:
         def collect(router: str) -> ObservedBgpRouter:
-            result = self._exec(topology, router, ("vtysh", "-c", "show bgp summary json"))
+            collector = self._collector(backends, router)
+            result = self._exec(topology, router, collector.bgp_summary_command())
             if result.return_code != 0:
                 raise RuntimeVerificationError(
                     f"BGP command failed inside {router}",
@@ -203,7 +296,7 @@ class RuntimeVerifier:
             if not isinstance(payload, (str, Mapping)):
                 raise RuntimeVerificationError(f"BGP output has an invalid shape for {router}")
             try:
-                return parse_bgp_summary(router, cast(str | Mapping[str, Any], payload))
+                return collector.parse_bgp_summary(router, cast(str | Mapping[str, Any], payload))
             except (ValueError, json.JSONDecodeError) as error:
                 raise RuntimeVerificationError(
                     f"BGP output is invalid for {router}: {error}"
@@ -213,14 +306,17 @@ class RuntimeVerifier:
         return {state.router: state for state in states}
 
     def _wait_for_bgp(
-        self, topology: Path, expected: ExpectedState
+        self,
+        topology: Path,
+        expected: ExpectedState,
+        backends: Mapping[str, PlatformBackend],
     ) -> dict[str, ObservedBgpRouter]:
         deadline = time.monotonic() + self._convergence_timeout_seconds
         last_error: RuntimeVerificationError | None = None
         observed: dict[str, ObservedBgpRouter] = {}
         while True:
             try:
-                observed = self._collect_bgp(topology, expected)
+                observed = self._collect_bgp(topology, expected, backends)
                 last_error = None
                 if verify_bgp(expected.bgp_adjacencies, observed).successful:
                     return observed
@@ -233,10 +329,14 @@ class RuntimeVerifier:
             time.sleep(self._poll_interval_seconds)
 
     def _collect_routes(
-        self, topology: Path, expected: ExpectedState
+        self,
+        topology: Path,
+        expected: ExpectedState,
+        backends: Mapping[str, PlatformBackend],
     ) -> dict[str, ObservedRouteTable]:
         def collect(router: str) -> ObservedRouteTable:
-            result = self._exec(topology, router, ("vtysh", "-c", "show ip route json"))
+            collector = self._collector(backends, router)
+            result = self._exec(topology, router, collector.route_table_command())
             if result.return_code != 0:
                 raise RuntimeVerificationError(
                     f"route command failed inside {router}",
@@ -246,7 +346,7 @@ class RuntimeVerifier:
             if not isinstance(payload, (str, Mapping)):
                 raise RuntimeVerificationError(f"route output has an invalid shape for {router}")
             try:
-                return parse_route_table(router, cast(str | Mapping[str, Any], payload))
+                return collector.parse_route_table(router, cast(str | Mapping[str, Any], payload))
             except (ValueError, json.JSONDecodeError) as error:
                 raise RuntimeVerificationError(
                     f"route output is invalid for {router}: {error}"
@@ -256,7 +356,10 @@ class RuntimeVerifier:
         return {table.router: table for table in tables}
 
     def _wait_for_routes(
-        self, topology: Path, expected: ExpectedState
+        self,
+        topology: Path,
+        expected: ExpectedState,
+        backends: Mapping[str, PlatformBackend],
     ) -> dict[str, ObservedRouteTable]:
         """Wait for expected routes and ECMP paths after BGP is established."""
         deadline = time.monotonic() + self._convergence_timeout_seconds
@@ -264,7 +367,7 @@ class RuntimeVerifier:
         observed: dict[str, ObservedRouteTable] = {}
         while True:
             try:
-                observed = self._collect_routes(topology, expected)
+                observed = self._collect_routes(topology, expected, backends)
                 last_error = None
                 if verify_routes(expected.router_prefixes, expected.isolation, observed).successful:
                     return observed
@@ -276,7 +379,12 @@ class RuntimeVerifier:
                 return observed
             time.sleep(self._poll_interval_seconds)
 
-    def _collect_pings(self, topology: Path, expected: ExpectedState) -> tuple[PingOutcome, ...]:
+    def _collect_pings(
+        self,
+        topology: Path,
+        expected: ExpectedState,
+        backends: Mapping[str, PlatformBackend],
+    ) -> tuple[PingOutcome, ...]:
         jobs: list[tuple[str, str, IPv4Address]] = [
             (probe.source_node, probe.source_vrf, probe.destination_address)
             for probe in expected.reachability
@@ -290,11 +398,14 @@ class RuntimeVerifier:
 
         def collect(job: tuple[str, str, IPv4Address]) -> PingOutcome:
             node, vrf, destination = job
-            result = self._exec(
-                topology,
-                node,
-                ("ip", "vrf", "exec", vrf, "ping", "-c", "1", "-W", "1", str(destination)),
-            )
+            backend = backends.get(node)
+            command = None if backend is None else backend.ping_command(vrf, str(destination))
+            if command is None:
+                raise RuntimeVerificationError(
+                    f"no backend reachability probe is available for {node}",
+                    details={"node": node},
+                )
+            result = self._exec(topology, node, command)
             stdout = result.stdout if isinstance(result.stdout, str) else json.dumps(result.stdout)
             return parse_ping_outcome(
                 source_node=node,

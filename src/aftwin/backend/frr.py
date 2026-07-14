@@ -1,12 +1,38 @@
 """FRR platform backend."""
 
+from collections.abc import Mapping
 from typing import Any, ClassVar
 
 from aftwin.backend.capabilities import BackendCapability
-from aftwin.backend.contract import BackendRoleClass, GeneratedFile, PlatformBackend
+from aftwin.backend.contract import (
+    BackendRoleClass,
+    GeneratedFile,
+    NetworkObservedStateCollector,
+    PlatformBackend,
+)
 from aftwin.compiler.expected_state import ExpectedState
 from aftwin.domain.models import Fabric, Node
 from aftwin.render.frr import DAEMONS, render_frr_config
+from aftwin.verify.bgp import ObservedBgpRouter, parse_bgp_summary
+from aftwin.verify.routes import ObservedRouteTable, parse_route_table
+
+
+class FrrObservedStateCollector(NetworkObservedStateCollector):
+    """Collect FRR evidence through vtysh JSON commands."""
+
+    def bgp_summary_command(self) -> tuple[str, ...]:
+        return ("vtysh", "-c", "show bgp summary json")
+
+    def parse_bgp_summary(self, router: str, payload: str | Mapping[str, Any]) -> ObservedBgpRouter:
+        return parse_bgp_summary(router, payload)
+
+    def route_table_command(self) -> tuple[str, ...]:
+        return ("vtysh", "-c", "show ip route json")
+
+    def parse_route_table(
+        self, router: str, payload: str | Mapping[str, Any]
+    ) -> ObservedRouteTable:
+        return parse_route_table(router, payload)
 
 
 class FrrBackend(PlatformBackend):
@@ -47,3 +73,10 @@ class FrrBackend(PlatformBackend):
                 "net.ipv4.conf.default.rp_filter": 0,
             },
         }
+
+    @property
+    def collector(self) -> NetworkObservedStateCollector:
+        return _COLLECTOR
+
+
+_COLLECTOR = FrrObservedStateCollector()

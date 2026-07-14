@@ -47,3 +47,6 @@ class LinuxEndpointBackend(PlatformBackend):
                 "net.ipv4.conf.default.rp_filter": 0,
             },
         }
+
+    def ping_command(self, vrf: str, destination: str) -> tuple[str, ...]:
+        return ("ip", "vrf", "exec", vrf, "ping", "-c", "1", "-W", "1", destination)

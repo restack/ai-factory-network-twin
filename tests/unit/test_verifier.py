@@ -1,6 +1,7 @@
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -9,7 +10,7 @@ from aftwin.compiler.expected_state import ExpectedState
 from aftwin.compiler.manifest import BuildManifest
 from aftwin.errors import RuntimeVerificationError
 from aftwin.runtime.executor import CommandResult
-from aftwin.runtime.lifecycle import DeploymentStamp
+from aftwin.runtime.lifecycle import DEPLOYMENT_STAMP_PATH, DeploymentStamp
 from aftwin.verify.verifier import RuntimeVerifier, decode_node_command
 
 GOLDEN = Path("tests/golden/mini-dual-plane")
@@ -99,11 +100,10 @@ class PassingRuntime:
 def _write_deployed_build(tmp_path: Path) -> ExpectedState:
     expected = ExpectedState.model_validate_json((GOLDEN / "expected-state.json").read_text())
     (tmp_path / "reports").mkdir()
-    for filename in ("expected-state.json", "topology.clab.yml"):
+    for filename in ("expected-state.json", "topology.clab.yml", "inventory.json"):
         (tmp_path / filename).write_text(
             (GOLDEN / filename).read_text(encoding="utf-8"), encoding="utf-8"
         )
-    (tmp_path / "inventory.json").write_text(json.dumps({"node_count": 12}), encoding="utf-8")
     (tmp_path / "reports" / "static-validation.json").write_text(
         json.dumps({"passed": True}), encoding="utf-8"
     )
@@ -159,3 +159,47 @@ def test_runtime_verifier_rejects_artifact_tampering_before_collection(tmp_path:
 
     with pytest.raises(RuntimeVerificationError, match="differs from manifest"):
         RuntimeVerifier(PassingRuntime(expected)).verify(tmp_path)
+
+
+def _rewrite_inventory(
+    tmp_path: Path, transform: Callable[[dict[str, Any]], dict[str, Any]]
+) -> None:
+    """Apply a JSON transform and re-stamp the build so integrity gates pass."""
+    inventory: dict[str, Any] = json.loads(
+        (tmp_path / "inventory.json").read_text(encoding="utf-8")
+    )
+    (tmp_path / "inventory.json").write_text(
+        json.dumps(transform(inventory), indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    (tmp_path / DEPLOYMENT_STAMP_PATH).unlink()
+    manifest = BuildManifest.create(tmp_path, source_revision=str(inventory["source_revision"]))
+    manifest.write(tmp_path)
+    DeploymentStamp.from_build(tmp_path, manifest).write(tmp_path)
+
+
+def test_runtime_verifier_requires_node_renderer_records(tmp_path: Path) -> None:
+    expected = _write_deployed_build(tmp_path)
+
+    def drop_nodes(inventory: dict[str, Any]) -> dict[str, Any]:
+        inventory["nodes"] = []
+        return inventory
+
+    _rewrite_inventory(tmp_path, drop_nodes)
+
+    with pytest.raises(RuntimeVerificationError, match="no node renderer records"):
+        RuntimeVerifier(PassingRuntime(expected)).verify(tmp_path)
+
+
+def test_runtime_verifier_rejects_probe_incapable_endpoint_backends(tmp_path: Path) -> None:
+    expected = _write_deployed_build(tmp_path)
+
+    def endpoint_without_probe(inventory: dict[str, Any]) -> dict[str, Any]:
+        for record in inventory["nodes"]:
+            if record["name"] == "gpu01":
+                record["renderer"] = "frr"
+        return inventory
+
+    _rewrite_inventory(tmp_path, endpoint_without_probe)
+
+    with pytest.raises(RuntimeVerificationError, match="no backend reachability probe"):
+        RuntimeVerifier(PassingRuntime(expected)).verify_connectivity(tmp_path)

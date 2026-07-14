@@ -7,6 +7,7 @@ subprocesses; runtime adapters consume their declarations.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from enum import StrEnum
 from pathlib import PurePosixPath
 from typing import Any, ClassVar
@@ -16,6 +17,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from aftwin.backend.capabilities import BackendCapability
 from aftwin.compiler.expected_state import ExpectedState
 from aftwin.domain.models import Fabric, Node
+from aftwin.verify.bgp import ObservedBgpRouter
+from aftwin.verify.routes import ObservedRouteTable
 
 
 class BackendRoleClass(StrEnum):
@@ -43,6 +46,36 @@ class GeneratedFile(BaseModel):
         return value
 
 
+class NetworkObservedStateCollector(ABC):
+    """Vendor command specifications and parsers for one network backend.
+
+    Parsers translate vendor payloads into the vendor-neutral observed-state
+    models; vendor field names must not leak past this boundary.
+    """
+
+    @abstractmethod
+    def bgp_summary_command(self) -> tuple[str, ...]:
+        """Return the argv that emits this backend's BGP summary evidence."""
+
+    @abstractmethod
+    def parse_bgp_summary(self, router: str, payload: str | Mapping[str, Any]) -> ObservedBgpRouter:
+        """Normalize one router's BGP summary payload."""
+
+    @abstractmethod
+    def route_table_command(self) -> tuple[str, ...]:
+        """Return the argv that emits this backend's IPv4 route table evidence."""
+
+    @abstractmethod
+    def parse_route_table(
+        self, router: str, payload: str | Mapping[str, Any]
+    ) -> ObservedRouteTable:
+        """Normalize one router's IPv4 route table payload."""
+
+    def readiness_command(self) -> tuple[str, ...] | None:
+        """Return an argv that succeeds once the NOS accepts state queries."""
+        return None
+
+
 class PlatformBackend(ABC):
     """Capability-declared renderer contract for one runtime platform."""
 
@@ -53,6 +86,15 @@ class PlatformBackend(ABC):
     def runtime_interface_name(self, source_name: str) -> str:
         """Map one NetBox source interface name to its runtime name."""
         return source_name
+
+    @property
+    def collector(self) -> NetworkObservedStateCollector | None:
+        """Observed-state adapter; None when the backend is not collectable."""
+        return None
+
+    def ping_command(self, vrf: str, destination: str) -> tuple[str, ...] | None:
+        """Return the endpoint reachability probe argv; None when unsupported."""
+        return None
 
     @abstractmethod
     def render_node(
