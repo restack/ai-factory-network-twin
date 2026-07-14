@@ -130,20 +130,44 @@ def test_artifacts_outside_build_root_are_rejected(tmp_path: Path) -> None:
 
 def test_inventory_metadata_is_stable_newline_json() -> None:
     fabric = fixture_to_fabric(load_fixture(Path("fixtures/mini-dual-plane.yaml")))
+    renderers = {"frr": "frr", "linux-endpoint": "linux_endpoint"}
 
-    first = InventoryMetadata.from_fabric(fabric, compiler_version="0.1.0-test")
-    second = InventoryMetadata.from_fabric(fabric, compiler_version="0.1.0-test")
+    first = InventoryMetadata.from_fabric(
+        fabric, renderers=renderers, compiler_version="0.1.0-test"
+    )
+    second = InventoryMetadata.from_fabric(
+        fabric, renderers=renderers, compiler_version="0.1.0-test"
+    )
     payload = json.loads(first.to_json())
 
     assert first == second
     assert first.to_json() == second.to_json()
     assert first.to_json().endswith("\n")
-    assert payload == {
-        "compiler_version": "0.1.0-test",
-        "fabric_name": "mini-dual-plane",
-        "link_count": 16,
-        "node_count": 12,
-        "schema_version": 1,
-        "site": "aif-lab",
-        "source_revision": fabric.source_revision,
-    }
+    assert payload["schema_version"] == 2
+    assert payload["compiler_version"] == "0.1.0-test"
+    assert payload["fabric_name"] == "mini-dual-plane"
+    assert payload["site"] == "aif-lab"
+    assert payload["source_revision"] == fabric.source_revision
+    assert payload["node_count"] == 12
+    assert payload["link_count"] == 16
+    assert len(payload["nodes"]) == 12
+    assert payload["nodes"] == sorted(payload["nodes"], key=lambda item: item["name"])
+    assert {
+        "name": "spine-a1",
+        "role": "fabric-spine",
+        "platform": "frr",
+        "renderer": "frr",
+    } in payload["nodes"]
+    assert {
+        "name": "gpu01",
+        "role": "compute",
+        "platform": "linux-endpoint",
+        "renderer": "linux_endpoint",
+    } in payload["nodes"]
+
+
+def test_inventory_metadata_requires_renderer_bindings() -> None:
+    fabric = fixture_to_fabric(load_fixture(Path("fixtures/mini-dual-plane.yaml")))
+
+    with pytest.raises(ValueError, match="platforms without a renderer binding"):
+        InventoryMetadata.from_fabric(fabric, renderers={"frr": "frr"})

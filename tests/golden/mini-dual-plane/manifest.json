@@ -1,5 +1,5 @@
 {
-  "build_hash": "57a0c0b4cc34f88fa33292a1a32ecb59b21adac6b16378f902181ea9f52850af",
+  "build_hash": "98a27fe22a1dddd2d671f59d8a6a9426893ab98567ad6dadcdbcce04c91053f0",
   "compiler_version": "0.1.0",
   "files": [
     {
@@ -109,8 +109,8 @@
     },
     {
       "path": "inventory.json",
-      "sha256": "c78cdc0ac91f31746a7d7ab5787c7ce9657987dd77a2d7adb242f71654f7362b",
-      "size": 243
+      "sha256": "54419df61b511f596508af18a63bd9c3e57d288eb58ca131771cece6dbb117c8",
+      "size": 1724
     },
     {
       "path": "topology.clab.yml",

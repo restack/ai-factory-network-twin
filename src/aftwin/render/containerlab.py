@@ -5,6 +5,7 @@ from typing import Any
 
 import yaml
 
+from aftwin.backend.contract import PlatformBackend
 from aftwin.domain.enums import NodeRole
 from aftwin.domain.models import Fabric
 
@@ -18,48 +19,30 @@ NODE_GROUPS = {
 
 
 def render_containerlab_topology(
-    fabric: Fabric, platform_nodes: Mapping[str, Mapping[str, str]]
+    fabric: Fabric,
+    platform_nodes: Mapping[str, Mapping[str, str]],
+    backends: Mapping[str, PlatformBackend],
 ) -> str:
     """Render a stable Containerlab topology for a validated fabric."""
     nodes: dict[str, dict[str, Any]] = {}
+    node_backends: dict[str, PlatformBackend] = {}
     for node in sorted(fabric.nodes, key=lambda item: item.name):
         platform = platform_nodes[node.platform]
-        definition: dict[str, Any] = {
-            "kind": platform["kind"],
-            "image": platform["image"],
-            "group": NODE_GROUPS[node.role],
-        }
-        if platform["renderer"] == "linux_endpoint":
-            definition["binds"] = [
-                f"configs/endpoints/{node.name}/setup.sh:/usr/local/sbin/aftwin-endpoint-setup:ro"
-            ]
-            definition["exec"] = ["/bin/sh /usr/local/sbin/aftwin-endpoint-setup"]
-            definition["sysctls"] = {
-                "net.ipv4.ip_forward": 0,
-                "net.ipv4.conf.all.rp_filter": 0,
-                "net.ipv4.conf.default.rp_filter": 0,
-            }
-        elif platform["renderer"] == "frr":
-            definition["binds"] = [
-                f"configs/routers/{node.name}/daemons:/etc/frr/daemons:ro",
-                f"configs/routers/{node.name}/frr.conf:/etc/frr/frr.conf:ro",
-            ]
-            definition["sysctls"] = {
-                "net.ipv4.ip_forward": 1,
-                "net.ipv4.conf.all.rp_filter": 0,
-                "net.ipv4.conf.default.rp_filter": 0,
-            }
-        else:
-            raise ValueError(f"unsupported renderer: {platform['renderer']}")
-        nodes[node.name] = definition
+        backend = backends[node.platform]
+        node_backends[node.name] = backend
+        nodes[node.name] = backend.containerlab_node(
+            node,
+            kind=platform["kind"],
+            image=platform["image"],
+            group=NODE_GROUPS[node.role],
+        )
 
     endpoint_pairs = [
         tuple(
             sorted(
-                (
-                    f"{link.endpoint_a.node}:{link.endpoint_a.interface}",
-                    f"{link.endpoint_b.node}:{link.endpoint_b.interface}",
-                )
+                f"{endpoint.node}:"
+                f"{node_backends[endpoint.node].runtime_interface_name(endpoint.interface)}"
+                for endpoint in (link.endpoint_a, link.endpoint_b)
             )
         )
         for link in fabric.links

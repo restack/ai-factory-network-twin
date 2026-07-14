@@ -122,22 +122,43 @@ def collect_artifact_digests(
     return tuple(by_path[path] for path in sorted(by_path))
 
 
+class InventoryNodeRecord(BaseModel):
+    """One compiled node's platform and renderer binding."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    name: str = Field(min_length=1)
+    role: str = Field(min_length=1)
+    platform: str = Field(min_length=1)
+    renderer: str = Field(min_length=1)
+
+
 class InventoryMetadata(BaseModel):
     """Stable build provenance and inventory counts for ``inventory.json``."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: int = Field(default=1, ge=1)
+    schema_version: int = Field(default=2, ge=1)
     compiler_version: str = Field(min_length=1)
     source_revision: str = Field(min_length=1)
     fabric_name: str = Field(min_length=1)
     site: str = Field(min_length=1)
     node_count: int = Field(ge=0)
     link_count: int = Field(ge=0)
+    nodes: tuple[InventoryNodeRecord, ...] = ()
 
     @classmethod
-    def from_fabric(cls, fabric: Fabric, *, compiler_version: str = __version__) -> Self:
+    def from_fabric(
+        cls,
+        fabric: Fabric,
+        *,
+        renderers: Mapping[str, str],
+        compiler_version: str = __version__,
+    ) -> Self:
         """Create deterministic inventory metadata from normalized intent."""
+        missing = sorted({node.platform for node in fabric.nodes} - set(renderers))
+        if missing:
+            raise ValueError(f"platforms without a renderer binding: {', '.join(missing)}")
         return cls(
             compiler_version=compiler_version,
             source_revision=fabric.source_revision,
@@ -145,6 +166,15 @@ class InventoryMetadata(BaseModel):
             site=fabric.site,
             node_count=len(fabric.nodes),
             link_count=len(fabric.links),
+            nodes=tuple(
+                InventoryNodeRecord(
+                    name=node.name,
+                    role=node.role.value,
+                    platform=node.platform,
+                    renderer=renderers[node.platform],
+                )
+                for node in sorted(fabric.nodes, key=lambda item: item.name)
+            ),
         )
 
     def to_json(self) -> str:

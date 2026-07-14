@@ -8,13 +8,13 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from aftwin.backend.contract import BackendRoleClass, PlatformBackend
+from aftwin.backend.registry import get_backend
 from aftwin.compiler.expected_state import generate_expected_state, render_expected_state
 from aftwin.compiler.manifest import BuildInputIdentity, BuildManifest, InventoryMetadata
 from aftwin.domain.enums import ENDPOINT_ROLES
 from aftwin.domain.models import Fabric
 from aftwin.render.containerlab import render_containerlab_topology
-from aftwin.render.endpoint import render_endpoint_setup
-from aftwin.render.frr import DAEMONS, render_frr_config
 
 
 class PlatformEntry(BaseModel):
@@ -24,7 +24,7 @@ class PlatformEntry(BaseModel):
 
     kind: str = Field(min_length=1)
     image: str = Field(min_length=1)
-    renderer: Literal["frr", "linux_endpoint"]
+    renderer: str = Field(min_length=1)
 
     @field_validator("image")
     @classmethod
@@ -34,6 +34,12 @@ class PlatformEntry(BaseModel):
         _, separator, tag = component.rpartition(":")
         if not separator or re.fullmatch(r"v?[0-9]+(?:[._-][A-Za-z0-9]+)*", tag) is None:
             raise ValueError("runtime image must use an explicit version tag")
+        return value
+
+    @field_validator("renderer")
+    @classmethod
+    def require_registered_renderer(cls, value: str) -> str:
+        get_backend(value)
         return value
 
 
@@ -132,40 +138,42 @@ def compile_fabric(
     unsupported = sorted(required - set(platform_map.platforms))
     if unsupported:
         raise ValueError(f"unsupported platforms: {', '.join(unsupported)}")
+    backends: dict[str, PlatformBackend] = {
+        name: get_backend(entry.renderer) for name, entry in platform_map.platforms.items()
+    }
     for node in fabric.nodes:
-        mapping = platform_map.platforms[node.platform]
-        expected_renderer = "linux_endpoint" if node.role in ENDPOINT_ROLES else "frr"
-        if mapping.renderer != expected_renderer:
+        backend = backends[node.platform]
+        required_class = (
+            BackendRoleClass.ENDPOINT if node.role in ENDPOINT_ROLES else BackendRoleClass.NETWORK
+        )
+        if backend.role_class is not required_class:
             raise ValueError(
-                f"platform {node.platform!r} uses renderer {mapping.renderer!r}; "
-                f"node {node.name!r} requires {expected_renderer!r}"
+                f"platform {node.platform!r} uses {backend.role_class.value} "
+                f"renderer {backend.name!r}; "
+                f"node {node.name!r} requires a {required_class.value} renderer"
             )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     _clear_generated(output_dir)
     expected = generate_expected_state(fabric, profile)
     mappings = {
-        name: {"kind": entry.kind, "image": entry.image, "renderer": entry.renderer}
+        name: {"kind": entry.kind, "image": entry.image}
         for name, entry in platform_map.platforms.items()
     }
-    _write(output_dir / "topology.clab.yml", render_containerlab_topology(fabric, mappings))
+    _write(
+        output_dir / "topology.clab.yml",
+        render_containerlab_topology(fabric, mappings, backends),
+    )
     for node in sorted(fabric.nodes, key=lambda item: item.name):
-        renderer = platform_map.platforms[node.platform].renderer
-        if renderer == "linux_endpoint":
-            _write(
-                output_dir / "configs" / "endpoints" / node.name / "setup.sh",
-                render_endpoint_setup(node, expected.endpoint_prefixes),
-                executable=True,
-            )
-        elif renderer == "frr":
-            router_dir = output_dir / "configs" / "routers" / node.name
-            _write(router_dir / "daemons", DAEMONS)
-            _write(router_dir / "frr.conf", render_frr_config(fabric, node))
-        else:
-            raise ValueError(f"unsupported renderer: {renderer}")
+        for artifact in backends[node.platform].render_node(fabric, node, expected):
+            _write(output_dir / artifact.path, artifact.content, executable=artifact.executable)
 
     _write(output_dir / "expected-state.json", render_expected_state(expected))
-    _write(output_dir / "inventory.json", InventoryMetadata.from_fabric(fabric).to_json())
+    renderers = {name: entry.renderer for name, entry in platform_map.platforms.items()}
+    _write(
+        output_dir / "inventory.json",
+        InventoryMetadata.from_fabric(fabric, renderers=renderers).to_json(),
+    )
     manifest = BuildManifest.create(
         output_dir,
         source_revision=fabric.source_revision,
