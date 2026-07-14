@@ -15,7 +15,10 @@
 - **M3:** Complete and merged
 - **M4:** Complete and merged
 - **M5:** Complete and merged
-- **Next:** M6 platform backend abstraction and SR Linux proof of concept
+- **M6:** Complete — capability-declared backend contract, compile/deploy preflight,
+  and the SR Linux golden lab verified end to end (BGP 8/8, routes, per-plane
+  reachability, isolation) alongside the byte-stable FRR baseline
+- **Next:** M7 Batfish pre-deployment assurance
 
 The post-MVP multi-vendor and assurance architecture is defined in
 [`docs/DIGITAL_TWIN_ARCHITECTURE.md`](docs/DIGITAL_TWIN_ARCHITECTURE.md).

@@ -1,75 +1,75 @@
 {
-  "build_hash": "80acadbc5a3ac175f2e443b912bb7429db8551a6abc8df238c45812f4be9413e",
+  "build_hash": "25aa14a2886975f093aac8622c37592d0a413c00cca76522864326a673e686b3",
   "compiler_version": "0.1.0",
   "files": [
     {
       "path": "configs/endpoints/gpu01/setup.sh",
-      "sha256": "600b19edb1152c5a6cf0615e475907754dc759ae31122c093ef18ad87825add8",
+      "sha256": "83e11646aa57418dea8b2984305f1fae0ff481f176a668f1ef84effc42364c92",
       "size": 658
     },
     {
       "path": "configs/endpoints/gpu02/setup.sh",
-      "sha256": "3513acd4c0c845e8a8e4642ee423f568d23ee546bf8ebaa95019231ec4601178",
+      "sha256": "126055c5b24708911bc61188b4660af78e581c558b9acb892424f31d3ee35bdc",
       "size": 658
     },
     {
       "path": "configs/endpoints/gpu03/setup.sh",
-      "sha256": "e3b05eeec3432fee078578476dd50a903e51691aa7336d5f4c944975a5a4df35",
+      "sha256": "70fe9fa6aa055ae48d56b88c1358073a86eef0ae887f0f18b8c0c2ccdbec4893",
       "size": 658
     },
     {
       "path": "configs/endpoints/gpu04/setup.sh",
-      "sha256": "702d37df4246deb616406d07c8cd1d6fed049841e99dafcdc2dcfd7bc5c06f47",
+      "sha256": "9b8a59f5a435dd467534d643bd841787be70009520f9c60071fb0b20fbf1d2f1",
       "size": 658
     },
     {
       "path": "configs/routers/leaf-a1/srlinux.cli",
-      "sha256": "7bbe614b0b90b02143432a7824f73730caf6023471523da7ff614e21f20295b8",
+      "sha256": "33238b929259441e0f0ae905590756746dde4f3719947d11bc0d9f5daa8bcdbf",
       "size": 3822
     },
     {
       "path": "configs/routers/leaf-a2/srlinux.cli",
-      "sha256": "b223b4be1ece270d4b925a58dd8a5ee52f3854654fe72efdf66f4a81993640f9",
+      "sha256": "34b253ff8615af86b6fc2d12f1de6a0898823b8e1860114b7f8e67ac343b41a2",
       "size": 3822
     },
     {
       "path": "configs/routers/leaf-b1/srlinux.cli",
-      "sha256": "37d394f03902289e4c9f956b78a387f6460e634d7c39168b970824e2ff464def",
+      "sha256": "3d0dd85e94920ba31da6104c988639a56ec6669030ad551cab39c93b182f1bd1",
       "size": 3822
     },
     {
       "path": "configs/routers/leaf-b2/srlinux.cli",
-      "sha256": "acf5330993d212eefff95b7eca98da8c94d9d4669bfb437f6b3a41c7bba39768",
+      "sha256": "597435e423aa0050e09b7d35c22ddec5b3181b4d432cbe326ce1f12d130c628e",
       "size": 3822
     },
     {
       "path": "configs/routers/spine-a1/srlinux.cli",
-      "sha256": "596ea8f451bec82f63637129f74c3e10413f234a3847c0b402dc9c6e916a809b",
+      "sha256": "7860da9e12f6f4af3d85c08d691fe91bf060b5b5ee96f2dc763c3830980e0725",
       "size": 3012
     },
     {
       "path": "configs/routers/spine-a2/srlinux.cli",
-      "sha256": "1f25d7a367d14b8a686f9a21da5bd58091b1e9f6cd587e6c9d7c4a207ca197be",
+      "sha256": "6278215ec668828364ba69605b3d53227f24f4393b2ac9a34933d22d8775d68c",
       "size": 3012
     },
     {
       "path": "configs/routers/spine-b1/srlinux.cli",
-      "sha256": "ebb23aca1c69b2cdc24a8da5f0458e72baa949b8afa98537f5fa61957f4de02d",
+      "sha256": "da58587cd35e0870406fe8b659cbb8fcb26678fa8ea50a1f413655f226811822",
       "size": 3012
     },
     {
       "path": "configs/routers/spine-b2/srlinux.cli",
-      "sha256": "e5c5bf3e6739aa085b33bcc0594c8b5f25f16540afde78eced748e460fc2e5e2",
+      "sha256": "470e102a6b05e4ed991db241a8170c2f8a937bc60b50ef30dd0eaa3ba96c00d6",
       "size": 3012
     },
     {
       "path": "expected-state.json",
-      "sha256": "f47890e5ffd61ec18901c77f4da1a3fd5b931804f080c0dd1b5a95f003e016af",
+      "sha256": "9e3f60b171241038fc54490dfd1afea0867fad9d8d11fa1ce36185f537040eed",
       "size": 17367
     },
     {
       "path": "inventory.json",
-      "sha256": "5ed0423ac4a9a2d621675d0581a615c3946a0c6c262590cdfa17db8cfaead311",
+      "sha256": "2d0baa51cdfc502be7a2568c8e8ceb15d72dc9774d9c086424071faa5a084736",
       "size": 1800
     },
     {
@@ -84,8 +84,8 @@
   },
   "policy_profile": {
     "name": "mini-dual-plane-srlinux",
-    "sha256": "aac98c31b3354b77a537f49924a216e0102b51bcd3e0af3de2e53133f9bc3552"
+    "sha256": "aac93d96043748e36ecc3b4368bd02e5cf58e337226115bb0f0b7c7bafdc65c1"
   },
   "schema_version": 2,
-  "source_revision": "774252b5cb38fa833cd38d9f5716d4bbac282b026009373d3627235da9dd1f70"
+  "source_revision": "6769301c7837f6469f483b5cd6e98620023aad6f752f27328064231ca5cd70bb"
 }

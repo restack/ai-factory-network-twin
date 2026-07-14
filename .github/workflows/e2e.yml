@@ -45,6 +45,9 @@ jobs:
       - name: Run privileged Containerlab integration tests
         run: just test-containerlab
 
+      - name: Run privileged SR Linux backend integration tests
+        run: just test-srlinux
+
       - name: Run disposable seed-to-scenario demonstration
         run: just demo
 

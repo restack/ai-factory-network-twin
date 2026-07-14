@@ -216,9 +216,11 @@ class NetBoxSeeder:
                 interfaces[(device.name, interface.name)] = interface_record
                 for address in interface.addresses:
                     address_text = str(address)
+                    # Scope idempotence to this interface so fixtures for other
+                    # sites can seed their own address objects independently.
                     self._ensure(
                         "ipam.ip_addresses",
-                        {"address": address_text},
+                        {"address": address_text, "interface_id": interface_record.id},
                         {
                             "address": address_text,
                             "status": "active",
@@ -237,9 +239,11 @@ class NetBoxSeeder:
                 ]
             )
             label = "--".join(endpoint_names)
+            # Device names repeat across fixture sites, so cable idempotence
+            # must be scoped to the seeded site.
             self._ensure(
                 "dcim.cables",
-                {"label": label},
+                {"label": label, "site_id": site.id},
                 {
                     "label": label,
                     "status": "connected",

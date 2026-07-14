@@ -83,5 +83,8 @@ test-netbox: netbox-up
 test-containerlab: endpoint-image
     AFTWIN_RUN_CONTAINERLAB_INTEGRATION=1 uv run pytest -m containerlab
 
+test-srlinux: endpoint-image
+    AFTWIN_RUN_SRLINUX_INTEGRATION=1 uv run pytest -m containerlab tests/integration/test_srlinux.py
+
 demo:
     bash scripts/demo.sh

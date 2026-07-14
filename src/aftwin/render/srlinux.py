@@ -107,9 +107,9 @@ def render_srlinux_config(fabric: Fabric, node: Node) -> str:
             f"{bgp} ebgp-default-policy export-reject-all false",
             f"{bgp} afi-safi ipv4-unicast admin-state enable",
             f"{bgp} afi-safi ipv4-unicast multipath allow-multiple-as true",
-            f"{bgp} afi-safi ipv4-unicast multipath max-paths-level-1 64",
+            f"{bgp} afi-safi ipv4-unicast multipath maximum-paths 64",
             f"{bgp} group {PEER_GROUP} admin-state enable",
-            f"{bgp} group {PEER_GROUP} export-policy {EXPORT_POLICY}",
+            f"{bgp} group {PEER_GROUP} export-policy [ {EXPORT_POLICY} ]",
             f"{bgp} group {PEER_GROUP} afi-safi ipv4-unicast admin-state enable",
         ]
     )

@@ -42,3 +42,22 @@ def test_seed_is_idempotent() -> None:
     assert first_created > 0
     assert second.created == 0
     assert second.existing == first_created
+
+
+def test_fixtures_with_shared_names_seed_disjoint_sites() -> None:
+    """Cables and addresses must be created per site even when labels repeat."""
+    fixture = load_fixture(Path("fixtures/smoke.yaml"))
+    other_site = fixture.site.model_copy(update={"slug": "other-site", "name": "Other Site"})
+    other = fixture.model_copy(update={"site": other_site})
+    client = FakeClient()
+    seeder = NetBoxSeeder(client)
+
+    seeder.seed(fixture)
+    second = seeder.seed(other)
+
+    cable_keys = [key for key in client.records if key[0] == "dcim.cables"]
+    address_keys = [key for key in client.records if key[0] == "ipam.ip_addresses"]
+    assert len(cable_keys) == 2 * len(fixture.links)
+    assert len({dict(key[1])["site_id"] for key in cable_keys}) == 2
+    assert second.created > 0
+    assert all("interface_id" in dict(key[1]) for key in address_keys)

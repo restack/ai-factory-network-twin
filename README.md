@@ -31,6 +31,9 @@ lab-down ← failure scenarios ← verify ← running digital twin
 - Git as the source of truth for permitted address pools, prefix-length constraints, policy, platform mappings, renderers, golden fixtures, and failure scenarios.
 - Static validation of dual-plane AI-fabric invariants before deployment.
 - Deterministic generation of Containerlab, FRR, endpoint, expected-state, and manifest artifacts.
+- A capability-declared platform backend contract: the same vendor-neutral fabric and
+  expected state compile to FRR or Nokia SR Linux, and per-backend collectors normalize
+  observed state for one verifier.
 - Runtime proof of BGP sessions, routes, ECMP, endpoint reachability, and cross-plane isolation.
 - Reversible link and spine failure tests with machine-readable evidence.
 
@@ -87,6 +90,38 @@ The default `mini-dual-plane` fixture represents one site with independent fabri
 | Compute endpoint | dual-homed | dual-homed |     4 |
 
 Each leaf connects to every spine in its plane. Each compute endpoint has one interface in Plane A and one in Plane B, with the interfaces placed into separate Linux VRFs. The generated fabric uses eBGP and ECMP; there is no cross-plane routing path.
+
+## Platform backends
+
+Rendering, Containerlab node definitions, source-to-runtime interface naming, readiness
+probes, and observed-state collection are owned by capability-declared platform backends.
+Policy profiles state the capabilities they require, and compilation fails with the
+complete gap list when a selected backend cannot satisfy them.
+
+| Backend | Runtime | Collector | Profile inputs |
+| --- | --- | --- | --- |
+| `frr` | FRR in a plain Linux container | `vtysh` JSON | `config/policies/mini-dual-plane.yaml`, `config/platform-map.yaml` |
+| `srlinux` | Native `nokia_srlinux` Containerlab node | `sr_cli` state queries as JSON | `config/policies/mini-dual-plane-srlinux.yaml`, `config/platform-map-srlinux.yaml` |
+| `linux_endpoint` | Pinned local Linux VRF endpoint image | `ip vrf exec` ping probes | shared by both network profiles |
+
+The SR Linux golden lab uses its own fixture, site, and address space, so both labs can
+be seeded into one NetBox instance and run side by side:
+
+```bash
+uv run aftwin seed --fixture fixtures/mini-dual-plane-srlinux.yaml
+uv run aftwin validate --site aif-srlinux --profile config/policies/mini-dual-plane-srlinux.yaml
+uv run aftwin compile --site aif-srlinux \
+  --profile config/policies/mini-dual-plane-srlinux.yaml \
+  --platform-map config/platform-map-srlinux.yaml
+uv run aftwin deploy --site aif-srlinux
+uv run aftwin verify --site aif-srlinux
+uv run aftwin lab down --site aif-srlinux
+```
+
+Expected state stays vendor-neutral: swapping only the platform map produces
+byte-identical `expected-state.json` for FRR and SR Linux builds of the same fabric.
+Deployment additionally checks that every required container image is present locally or
+pullable before Containerlab creates any resource.
 
 ## Requirements
 
@@ -387,6 +422,7 @@ Run `just` to print the available recipes.
 | `just lab-down`          | Destroy the matching lab and runtime directory             |
 | `just test-netbox`       | Run the local NetBox integration suite                     |
 | `just test-containerlab` | Run the privileged Containerlab integration suite          |
+| `just test-srlinux`      | Run the privileged SR Linux backend integration suite      |
 | `just demo`              | Run the complete disposable end-to-end demonstration       |
 
 ## Safety and reproducibility contracts
@@ -417,11 +453,12 @@ Run the privileged Containerlab integration tests:
 
 ```bash
 just test-containerlab
+just test-srlinux
 ```
 
-The Containerlab test deploys an ephemeral topology and always destroys it in a `finally` cleanup path.
+Each Containerlab test deploys an ephemeral topology and always destroys it in a `finally` cleanup path. The SR Linux suite pulls the public `ghcr.io/nokia/srlinux` image on first use.
 
-The weekly and manually dispatched [privileged E2E workflow](.github/workflows/e2e.yml) runs both integration suites and the complete disposable demonstration on a self-hosted Linux runner labeled `privileged`, with Docker and Containerlab access. It uploads the compiled topology, manifest, expected state, and JSON verification and scenario reports, then removes the lab and local NetBox volumes in an unconditional cleanup step. The bundled workflow uses only the public FRR image and the locally built endpoint image; it does not require proprietary NOS images.
+The weekly and manually dispatched [privileged E2E workflow](.github/workflows/e2e.yml) runs the integration suites and the complete disposable demonstration on a self-hosted Linux runner labeled `privileged`, with Docker and Containerlab access. It uploads the compiled topology, manifest, expected state, and JSON verification and scenario reports, then removes the lab and local NetBox volumes in an unconditional cleanup step. The bundled workflow uses only the public FRR and SR Linux images and the locally built endpoint image; it does not require proprietary NOS images.
 
 ## Troubleshooting
 

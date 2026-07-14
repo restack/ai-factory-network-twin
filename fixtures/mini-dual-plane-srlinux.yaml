@@ -18,15 +18,15 @@ devices:
         role: loopback
         plane: a
         type: virtual
-        addresses: [10.255.0.1/32]
+        addresses: [10.254.0.1/32]
       - name: eth1
         role: downlink
         plane: a
-        addresses: [10.0.0.0/31]
+        addresses: [10.2.0.0/31]
       - name: eth2
         role: downlink
         plane: a
-        addresses: [10.0.0.2/31]
+        addresses: [10.2.0.2/31]
   - name: spine-a2
     role: fabric-spine
     platform: srlinux
@@ -37,15 +37,15 @@ devices:
         role: loopback
         plane: a
         type: virtual
-        addresses: [10.255.0.2/32]
+        addresses: [10.254.0.2/32]
       - name: eth1
         role: downlink
         plane: a
-        addresses: [10.0.0.4/31]
+        addresses: [10.2.0.4/31]
       - name: eth2
         role: downlink
         plane: a
-        addresses: [10.0.0.6/31]
+        addresses: [10.2.0.6/31]
   - name: leaf-a1
     role: fabric-leaf
     platform: srlinux
@@ -56,23 +56,23 @@ devices:
         role: loopback
         plane: a
         type: virtual
-        addresses: [10.255.0.101/32]
+        addresses: [10.254.0.101/32]
       - name: eth1
         role: uplink
         plane: a
-        addresses: [10.0.0.1/31]
+        addresses: [10.2.0.1/31]
       - name: eth2
         role: uplink
         plane: a
-        addresses: [10.0.0.5/31]
+        addresses: [10.2.0.5/31]
       - name: eth3
         role: host
         plane: a
-        addresses: [10.0.1.0/31]
+        addresses: [10.2.1.0/31]
       - name: eth4
         role: host
         plane: a
-        addresses: [10.0.1.2/31]
+        addresses: [10.2.1.2/31]
   - name: leaf-a2
     role: fabric-leaf
     platform: srlinux
@@ -83,23 +83,23 @@ devices:
         role: loopback
         plane: a
         type: virtual
-        addresses: [10.255.0.102/32]
+        addresses: [10.254.0.102/32]
       - name: eth1
         role: uplink
         plane: a
-        addresses: [10.0.0.3/31]
+        addresses: [10.2.0.3/31]
       - name: eth2
         role: uplink
         plane: a
-        addresses: [10.0.0.7/31]
+        addresses: [10.2.0.7/31]
       - name: eth3
         role: host
         plane: a
-        addresses: [10.0.1.4/31]
+        addresses: [10.2.1.4/31]
       - name: eth4
         role: host
         plane: a
-        addresses: [10.0.1.6/31]
+        addresses: [10.2.1.6/31]
   - name: spine-b1
     role: fabric-spine
     platform: srlinux
@@ -110,15 +110,15 @@ devices:
         role: loopback
         plane: b
         type: virtual
-        addresses: [10.255.1.1/32]
+        addresses: [10.254.1.1/32]
       - name: eth1
         role: downlink
         plane: b
-        addresses: [10.1.0.0/31]
+        addresses: [10.3.0.0/31]
       - name: eth2
         role: downlink
         plane: b
-        addresses: [10.1.0.2/31]
+        addresses: [10.3.0.2/31]
   - name: spine-b2
     role: fabric-spine
     platform: srlinux
@@ -129,15 +129,15 @@ devices:
         role: loopback
         plane: b
         type: virtual
-        addresses: [10.255.1.2/32]
+        addresses: [10.254.1.2/32]
       - name: eth1
         role: downlink
         plane: b
-        addresses: [10.1.0.4/31]
+        addresses: [10.3.0.4/31]
       - name: eth2
         role: downlink
         plane: b
-        addresses: [10.1.0.6/31]
+        addresses: [10.3.0.6/31]
   - name: leaf-b1
     role: fabric-leaf
     platform: srlinux
@@ -148,23 +148,23 @@ devices:
         role: loopback
         plane: b
         type: virtual
-        addresses: [10.255.1.101/32]
+        addresses: [10.254.1.101/32]
       - name: eth1
         role: uplink
         plane: b
-        addresses: [10.1.0.1/31]
+        addresses: [10.3.0.1/31]
       - name: eth2
         role: uplink
         plane: b
-        addresses: [10.1.0.5/31]
+        addresses: [10.3.0.5/31]
       - name: eth3
         role: host
         plane: b
-        addresses: [10.1.1.0/31]
+        addresses: [10.3.1.0/31]
       - name: eth4
         role: host
         plane: b
-        addresses: [10.1.1.2/31]
+        addresses: [10.3.1.2/31]
   - name: leaf-b2
     role: fabric-leaf
     platform: srlinux
@@ -175,23 +175,23 @@ devices:
         role: loopback
         plane: b
         type: virtual
-        addresses: [10.255.1.102/32]
+        addresses: [10.254.1.102/32]
       - name: eth1
         role: uplink
         plane: b
-        addresses: [10.1.0.3/31]
+        addresses: [10.3.0.3/31]
       - name: eth2
         role: uplink
         plane: b
-        addresses: [10.1.0.7/31]
+        addresses: [10.3.0.7/31]
       - name: eth3
         role: host
         plane: b
-        addresses: [10.1.1.4/31]
+        addresses: [10.3.1.4/31]
       - name: eth4
         role: host
         plane: b
-        addresses: [10.1.1.6/31]
+        addresses: [10.3.1.6/31]
   - name: gpu01
     role: compute
     platform: linux-endpoint
@@ -200,11 +200,11 @@ devices:
       - name: eth1
         role: host
         plane: a
-        addresses: [10.0.1.1/31]
+        addresses: [10.2.1.1/31]
       - name: eth2
         role: host
         plane: b
-        addresses: [10.1.1.1/31]
+        addresses: [10.3.1.1/31]
   - name: gpu02
     role: compute
     platform: linux-endpoint
@@ -213,11 +213,11 @@ devices:
       - name: eth1
         role: host
         plane: a
-        addresses: [10.0.1.3/31]
+        addresses: [10.2.1.3/31]
       - name: eth2
         role: host
         plane: b
-        addresses: [10.1.1.3/31]
+        addresses: [10.3.1.3/31]
   - name: gpu03
     role: compute
     platform: linux-endpoint
@@ -226,11 +226,11 @@ devices:
       - name: eth1
         role: host
         plane: a
-        addresses: [10.0.1.5/31]
+        addresses: [10.2.1.5/31]
       - name: eth2
         role: host
         plane: b
-        addresses: [10.1.1.5/31]
+        addresses: [10.3.1.5/31]
   - name: gpu04
     role: compute
     platform: linux-endpoint
@@ -239,11 +239,11 @@ devices:
       - name: eth1
         role: host
         plane: a
-        addresses: [10.0.1.7/31]
+        addresses: [10.2.1.7/31]
       - name: eth2
         role: host
         plane: b
-        addresses: [10.1.1.7/31]
+        addresses: [10.3.1.7/31]
 links:
   - a: {device: spine-a1, interface: eth1}
     b: {device: leaf-a1, interface: eth1}

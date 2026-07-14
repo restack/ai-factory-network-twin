@@ -19,5 +19,5 @@ configure_vrf() {
     ip route replace vrf "$vrf" default via "$gateway" dev "$interface"
 }
 
-configure_vrf fabric-a 1001 eth1 10.0.1.1/31 10.0.1.0
-configure_vrf fabric-b 1002 eth2 10.1.1.1/31 10.1.1.0
+configure_vrf fabric-a 1001 eth1 10.2.1.1/31 10.2.1.0
+configure_vrf fabric-b 1002 eth2 10.3.1.1/31 10.3.1.0
